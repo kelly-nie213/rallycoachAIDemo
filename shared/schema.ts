@@ -15,9 +15,6 @@ export const videos = pgTable("videos", {
 export const insertVideoSchema = createInsertSchema(videos).omit({
   id: true,
   createdAt: true,
-  annotatedUrl: true,
-  recommendation: true,
-  analysisData: true,
 });
 
 export type Video = typeof videos.$inferSelect;

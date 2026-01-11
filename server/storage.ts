@@ -9,7 +9,7 @@ export interface IStorage {
 }
 
 export class DatabaseStorage implements IStorage {
-  async createVideo(insertVideo: InsertVideo): Promise<Video> {
+  async createVideo(insertVideo: any): Promise<Video> {
     const [video] = await db.insert(videos).values(insertVideo).returning();
     return video;
   }
@@ -19,7 +19,7 @@ export class DatabaseStorage implements IStorage {
     return video;
   }
 
-  async updateVideo(id: number, update: Partial<InsertVideo>): Promise<Video> {
+  async updateVideo(id: number, update: any): Promise<Video> {
     const [video] = await db
       .update(videos)
       .set(update)

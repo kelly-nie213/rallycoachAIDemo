@@ -92,7 +92,7 @@ export async function registerRoutes(
 
           // Generate structured recommendation using OpenAI
           const completion = await openai.chat.completions.create({
-            model: "gpt-5.1",
+            model: "gpt-4o",
             messages: [
               {
                 role: "system",
