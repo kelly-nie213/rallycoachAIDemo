@@ -3,9 +3,9 @@ import { videos, type Video, type InsertVideo } from "@shared/schema";
 import { eq } from "drizzle-orm";
 
 export interface IStorage {
-  createVideo(video: InsertVideo): Promise<Video>;
+  createVideo(video: any): Promise<Video>;
   getVideo(id: number): Promise<Video | undefined>;
-  updateVideo(id: number, video: Partial<InsertVideo>): Promise<Video>;
+  updateVideo(id: number, video: any): Promise<Video>;
 }
 
 export class DatabaseStorage implements IStorage {
