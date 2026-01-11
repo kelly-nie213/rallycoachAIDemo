@@ -14,6 +14,7 @@ import {
 import { Navbar } from "@/components/Navbar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
+import type { Video } from "@shared/schema";
 
 interface AnalysisData {
   dna: {
@@ -29,7 +30,7 @@ interface AnalysisData {
 export default function ResultPage() {
   const { id } = useParams();
   
-  const { data: video, isLoading: isQueryLoading } = useQuery({
+  const { data: video, isLoading: isQueryLoading } = useQuery<Video>({
     queryKey: [`/api/videos/${id}`],
     refetchInterval: (query) => {
       const status = query.state.data?.status;
