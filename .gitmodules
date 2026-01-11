@@ -1,0 +1,3 @@
+[submodule "rallyCoachAI"]
+	path = rallyCoachAI
+	url = https://github.com/kelly-nie213/rallyCoachAI.git
