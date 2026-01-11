@@ -75,7 +75,20 @@ export async function registerRoutes(
       (async () => {
         try {
           // Simulate computer vision processing time
-          await new Promise(resolve => setTimeout(resolve, 5000));
+          // Instead of setTimeout, we'll run the inference script
+          const { exec } = await import("child_process");
+          const { promisify } = await import("util");
+          const execAsync = promisify(exec);
+
+          // In a real app, we might download the file from object storage first if it's not local
+          // For this dummy script, we just pass the URL/path
+          const { stdout, stderr } = await execAsync(`python3 inference.py "${video.originalUrl}"`);
+          
+          if (stderr && !stdout.includes("success.done")) {
+            console.error("Inference script stderr:", stderr);
+          }
+
+          console.log("Inference output:", stdout);
 
           // Mock annotated URL (in real app, this would be the output of the CV model)
           const annotatedUrl = video.originalUrl; // For now, reuse original or add a flag
