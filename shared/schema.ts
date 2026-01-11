@@ -7,6 +7,7 @@ export const videos = pgTable("videos", {
   originalUrl: text("original_url").notNull(),
   annotatedUrl: text("annotated_url"),
   recommendation: text("recommendation"),
+  analysisData: text("analysis_data"), // Stores JSON string of structured analysis
   status: text("status").notNull().default("pending"), // pending, processing, completed, failed
   createdAt: timestamp("created_at").defaultNow(),
 });

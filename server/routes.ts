@@ -90,32 +90,44 @@ export async function registerRoutes(
 
           console.log("Inference output:", stdout);
 
-          // Mock annotated URL (in real app, this would be the output of the CV model)
-          const annotatedUrl = video.originalUrl; // For now, reuse original or add a flag
-
-          // Generate recommendation using OpenAI
+          // Generate structured recommendation using OpenAI
           const completion = await openai.chat.completions.create({
             model: "gpt-5.1",
             messages: [
               {
                 role: "system",
-                content: "You are an expert tennis coach. Analyze the player's performance based on the video context provided and give specific, actionable advice to improve their game. Focus on technique, footwork, and strategy."
+                content: `You are an expert tennis coach. Analyze the player's performance and provide structured feedback in JSON format.
+                The response MUST be a JSON object with the following structure:
+                {
+                  "dna": {
+                    "technical": number (0-100),
+                    "tactical": number (0-100),
+                    "summary": "string (high-level professional analysis)"
+                  },
+                  "strengths": ["string (at least 3 elite strengths)"],
+                  "fixes": ["string (at least 2 biomechanical fixes)"],
+                  "plan": [
+                    { "title": "DRILL 1", "description": "string" },
+                    { "title": "DRILL 2", "description": "string" }
+                  ]
+                }`
               },
               {
                 role: "user",
-                content: `Analyze the tennis swing in this video: ${video.originalUrl}. (Note: As an AI, simulate the analysis based on general best practices for a recreational player trying to improve top spin). Provide 3 key tips.`
+                content: `Analyze the tennis performance in this video: ${video.originalUrl}. Provide professional insights for a recreational player.`
               }
             ],
-            max_tokens: 500,
+            response_format: { type: "json_object" },
           });
 
-          const recommendation = completion.choices[0].message.content || "Could not generate recommendation.";
+          const analysisData = completion.choices[0].message.content || "{}";
 
           // Update video with results
           await storage.updateVideo(id, {
             status: "completed",
-            annotatedUrl: annotatedUrl,
-            recommendation: recommendation
+            annotatedUrl: video.originalUrl,
+            analysisData: analysisData,
+            recommendation: "Analysis complete. See dashboard for details."
           });
         } catch (err) {
           console.error("Background processing failed:", err);
