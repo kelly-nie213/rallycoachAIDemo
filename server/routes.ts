@@ -92,9 +92,9 @@ export async function registerRoutes(
 
           // Extract dummy results if present in stdout
           let contextPrompt = `Analyze the tennis performance in this video: ${video.originalUrl}. Provide professional insights for a recreational player.`;
-          if (stdout.includes("Test-Results-")) {
-            const dummyResults = stdout.split('\n').find(line => line.includes("Test-Results-"));
-            contextPrompt += ` Use these technical findings from the vision model: ${dummyResults}`;
+          if (stdout.includes("Test Results")) {
+            const dummyResults = stdout.split('\n').find(line => line.includes("Test Results"));
+            contextPrompt += ` Use these technical findings from the vision model: ${dummyResults}. Ensure the exact phrase "Test Results" is included in the elite strengths section.`;
           }
 
           // Generate structured recommendation using OpenAI
