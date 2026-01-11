@@ -1,8 +1,17 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { useLocation } from "wouter";
 import { useDropzone } from "react-dropzone";
 import { motion, AnimatePresence } from "framer-motion";
-import { Upload as UploadIcon, FileVideo, Link as LinkIcon, Loader2 } from "lucide-react";
+import { 
+  Upload as UploadIcon, 
+  FileVideo, 
+  Link as LinkIcon, 
+  Loader2, 
+  Cpu, 
+  Activity, 
+  CheckCircle2,
+  Check
+} from "lucide-react";
 import { Navbar } from "@/components/Navbar";
 import { useToast } from "@/hooks/use-toast";
 import { useUpload } from "@/hooks/use-upload";
@@ -14,15 +23,21 @@ export default function UploadPage() {
   const [activeTab, setActiveTab] = useState<'file' | 'link'>('file');
   const [driveLink, setDriveLink] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
+  const [currentStep, setCurrentStep] = useState<'idle' | 'upload' | 'inference' | 'analysis'>('idle');
+  const [processingVideoId, setProcessingVideoId] = useState<number | null>(null);
 
   // Use the object storage upload hook
   const { uploadFile, isUploading, progress } = useUpload({
+    onSuccess: () => {
+      setCurrentStep('inference');
+    },
     onError: (error) => {
       toast({
         title: "Upload Failed",
         description: error.message,
         variant: "destructive",
       });
+      setCurrentStep('idle');
     }
   });
 
@@ -31,11 +46,11 @@ export default function UploadPage() {
       setIsProcessing(true);
       const res = await apiRequest("POST", "/api/videos/upload", { originalUrl: url });
       const video = await res.json();
+      setProcessingVideoId(video.id);
       
       // Trigger processing
       await apiRequest("POST", `/api/videos/${video.id}/process`);
-      
-      setLocation(`/results/${video.id}`);
+      setCurrentStep('inference');
     } catch (error) {
       toast({
         title: "Error",
@@ -43,21 +58,56 @@ export default function UploadPage() {
         variant: "destructive",
       });
       setIsProcessing(false);
+      setCurrentStep('idle');
     }
   };
+
+  // Poll for status when in inference/analysis steps
+  useEffect(() => {
+    if (!processingVideoId || currentStep === 'idle' || currentStep === 'upload') return;
+
+    const interval = setInterval(async () => {
+      try {
+        const res = await fetch(`/api/videos/${processingVideoId}`);
+        const video = await res.json();
+        
+        if (video.status === 'completed') {
+          setCurrentStep('analysis');
+          setTimeout(() => setLocation(`/results/${video.id}`), 1000);
+          clearInterval(interval);
+        } else if (video.status === 'failed') {
+          toast({
+            title: "Analysis Failed",
+            description: "Please try uploading the video again.",
+            variant: "destructive"
+          });
+          setCurrentStep('idle');
+          setIsProcessing(false);
+          clearInterval(interval);
+        } else if (video.status === 'processing' && video.analysisData) {
+          // If we have analysis data but not marked completed yet, it's in final stage
+          setCurrentStep('analysis');
+        }
+      } catch (e) {
+        console.error("Polling error:", e);
+      }
+    }, 2000);
+
+    return () => clearInterval(interval);
+  }, [processingVideoId, currentStep, setLocation, toast]);
 
   const onDrop = useCallback(async (acceptedFiles: File[]) => {
     if (acceptedFiles.length > 0) {
       const file = acceptedFiles[0];
       try {
+        setCurrentStep('upload');
         const result = await uploadFile(file);
         if (result) {
-          // result.objectPath is the path in object storage (e.g., /objects/uploads/uuid)
-          // We can use this as the URL for the backend to reference
           await createVideoRecord(result.objectPath);
         }
       } catch (error) {
         console.error("Upload failed:", error);
+        setCurrentStep('idle');
       }
     }
   }, [uploadFile]);
@@ -75,154 +125,221 @@ export default function UploadPage() {
   const handleLinkSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!driveLink) return;
+    setCurrentStep('upload');
     await createVideoRecord(driveLink);
   };
 
   const isLoading = isUploading || isProcessing;
 
+  const steps = [
+    { id: 'upload', label: 'UPLOAD', icon: UploadIcon },
+    { id: 'inference', label: 'INFERENCE', icon: Cpu },
+    { id: 'analysis', label: 'ANALYSIS', icon: Activity },
+  ];
+
+  const getStepStatus = (stepId: string) => {
+    const stepOrder = ['idle', 'upload', 'inference', 'analysis'];
+    const currentIdx = stepOrder.indexOf(currentStep);
+    const stepIdx = stepOrder.indexOf(stepId);
+
+    if (currentIdx > stepIdx) return 'completed';
+    if (currentIdx === stepIdx) return 'active';
+    return 'pending';
+  };
+
   return (
-    <div className="min-h-screen bg-background flex flex-col">
+    <div className="min-h-screen bg-[#0a0c10] text-white flex flex-col">
       <Navbar />
       
       <main className="flex-1 container mx-auto px-4 py-12 flex flex-col items-center justify-center">
         <motion.div 
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="w-full max-w-2xl"
+          className="w-full max-w-3xl"
         >
-          <div className="text-center mb-10">
-            <h1 className="text-4xl font-bold mb-4">Upload Match Footage</h1>
-            <p className="text-muted-foreground text-lg">
-              We accept MP4, MOV, and AVI files up to 500MB.
-            </p>
-          </div>
+          {isLoading ? (
+            <div className="bg-[#11141d] rounded-[2rem] border border-white/5 p-12 relative overflow-hidden">
+              <div className="absolute inset-0 bg-gradient-to-b from-white/[0.02] to-transparent pointer-events-none" />
+              
+              {/* High-Tech Progress Header */}
+              <div className="flex items-center justify-between mb-20 relative">
+                {steps.map((step, idx) => {
+                  const status = getStepStatus(step.id);
+                  const Icon = step.icon;
+                  
+                  return (
+                    <div key={step.id} className="flex flex-col items-center gap-4 relative z-10">
+                      <div className={`w-14 h-14 rounded-2xl flex items-center justify-center border-2 transition-all duration-500 ${
+                        status === 'active' 
+                          ? 'bg-accent border-accent text-[#0a0c10] shadow-[0_0_20px_rgba(132,206,166,0.3)]' 
+                          : status === 'completed'
+                          ? 'bg-accent/20 border-accent/20 text-accent'
+                          : 'bg-white/5 border-white/10 text-white/20'
+                      }`}>
+                        <Icon className="w-6 h-6" />
+                      </div>
+                      <span className={`text-[10px] font-bold tracking-[0.2em] transition-colors duration-500 ${
+                        status === 'active' ? 'text-accent' : 'text-white/20'
+                      }`}>
+                        {step.label}
+                      </span>
+                      
+                      {idx < steps.length - 1 && (
+                        <div className="absolute left-[calc(100%+1rem)] top-7 w-[calc(100%-2rem)] md:w-40 h-[2px] bg-white/5">
+                          <motion.div 
+                            initial={{ width: 0 }}
+                            animate={{ width: status === 'completed' ? '100%' : '0%' }}
+                            className="h-full bg-accent shadow-[0_0_10px_rgba(132,206,166,0.5)]"
+                          />
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
 
-          <div className="bg-white rounded-3xl shadow-xl shadow-black/5 border border-border/60 overflow-hidden">
-            {/* Tabs */}
-            <div className="flex border-b border-border/60">
-              <button
-                onClick={() => setActiveTab('file')}
-                disabled={isLoading}
-                className={`flex-1 py-4 text-center font-semibold transition-colors ${
-                  activeTab === 'file' 
-                    ? 'bg-secondary/5 text-secondary border-b-2 border-secondary' 
-                    : 'text-muted-foreground hover:text-foreground'
-                }`}
-              >
-                Upload File
-              </button>
-              <button
-                onClick={() => setActiveTab('link')}
-                disabled={isLoading}
-                className={`flex-1 py-4 text-center font-semibold transition-colors ${
-                  activeTab === 'link' 
-                    ? 'bg-secondary/5 text-secondary border-b-2 border-secondary' 
-                    : 'text-muted-foreground hover:text-foreground'
-                }`}
-              >
-                Google Drive Link
-              </button>
+              {/* Status Message */}
+              <div className="text-center space-y-2">
+                <h3 className="text-xl font-bold tracking-tight">
+                  {currentStep === 'upload' && `Uploading match footage... ${progress}%`}
+                  {currentStep === 'inference' && "GPU Inference: Detecting player skeletal markers..."}
+                  {currentStep === 'analysis' && "Analysis: Generating professional technical insights..."}
+                </h3>
+                <div className="flex items-center justify-center gap-4 text-[10px] font-bold tracking-[0.2em] text-white/30 uppercase">
+                  <span>LATENCY: 240MS</span>
+                  <span className="w-1 h-1 rounded-full bg-white/20" />
+                  <span>WORKERS: ACTIVE</span>
+                </div>
+              </div>
             </div>
+          ) : (
+            <div className="text-center space-y-12">
+              <div className="space-y-4">
+                <h1 className="text-6xl font-bold tracking-tighter leading-tight">
+                  Upload Match <br />
+                  <span className="text-accent italic">Footage.</span>
+                </h1>
+                <p className="text-white/40 font-medium text-lg max-w-md mx-auto">
+                  We accept MP4, MOV, and AVI files. Pro-level analysis in seconds.
+                </p>
+              </div>
 
-            <div className="p-8">
-              <AnimatePresence mode="wait">
-                {activeTab === 'file' ? (
-                  <motion.div
-                    key="file"
-                    initial={{ opacity: 0, x: -20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: 20 }}
-                    className="h-80"
+              <div className="max-w-xl mx-auto">
+                <div className="flex gap-4 mb-8">
+                  <button
+                    onClick={() => setActiveTab('file')}
+                    className={`flex-1 py-3 px-6 rounded-2xl font-bold text-xs tracking-widest transition-all ${
+                      activeTab === 'file' 
+                        ? 'bg-white/10 text-white border border-white/20' 
+                        : 'text-white/30 hover:text-white/50'
+                    }`}
                   >
-                    <div
+                    LOCAL FILE
+                  </button>
+                  <button
+                    onClick={() => setActiveTab('link')}
+                    className={`flex-1 py-3 px-6 rounded-2xl font-bold text-xs tracking-widest transition-all ${
+                      activeTab === 'link' 
+                        ? 'bg-white/10 text-white border border-white/20' 
+                        : 'text-white/30 hover:text-white/50'
+                    }`}
+                  >
+                    GOOGLE DRIVE
+                  </button>
+                </div>
+
+                <AnimatePresence mode="wait">
+                  {activeTab === 'file' ? (
+                    <motion.div
+                      key="file"
+                      initial={{ opacity: 0, scale: 0.98 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      exit={{ opacity: 0, scale: 0.98 }}
                       {...getRootProps()}
-                      className={`h-full border-2 border-dashed rounded-2xl flex flex-col items-center justify-center cursor-pointer transition-all duration-300 group ${
+                      className={`relative p-1 rounded-[2rem] border-2 border-dashed transition-all duration-500 overflow-hidden cursor-pointer ${
                         isDragActive 
-                          ? 'border-secondary bg-secondary/5' 
-                          : 'border-border hover:border-secondary/50 hover:bg-muted/20'
+                          ? 'border-accent bg-accent/5 shadow-[0_0_30px_rgba(132,206,166,0.1)]' 
+                          : 'border-white/10 bg-white/[0.02] hover:bg-white/[0.04]'
                       }`}
                     >
                       <input {...getInputProps()} />
-                      {isLoading ? (
-                        <div className="flex flex-col items-center text-secondary">
-                          <Loader2 className="w-12 h-12 animate-spin mb-4" />
-                          <p className="font-medium">
-                            {isUploading ? `Uploading... ${progress}%` : "Processing video..."}
-                          </p>
+                      <div className="relative py-20 flex flex-col items-center justify-center gap-6">
+                        <div className="w-16 h-16 rounded-2xl bg-white/5 flex items-center justify-center border border-white/10">
+                          <UploadIcon className={`w-6 h-6 ${isDragActive ? 'text-accent' : 'text-white/40'}`} />
                         </div>
-                      ) : (
-                        <>
-                          <div className="w-16 h-16 rounded-full bg-secondary/10 flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
-                            <UploadIcon className="w-8 h-8 text-secondary" />
-                          </div>
-                          <p className="text-lg font-semibold text-primary mb-2">
-                            {isDragActive ? "Drop video here" : "Drag & drop video"}
-                          </p>
-                          <p className="text-sm text-muted-foreground">
-                            or click to browse from computer
-                          </p>
-                        </>
-                      )}
-                    </div>
-                  </motion.div>
-                ) : (
-                  <motion.div
-                    key="link"
-                    initial={{ opacity: 0, x: 20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: -20 }}
-                    className="h-80 flex flex-col justify-center"
-                  >
-                    <form onSubmit={handleLinkSubmit} className="space-y-6">
-                      <div className="space-y-2">
-                        <label className="text-sm font-medium text-foreground ml-1">
-                          Google Drive Public Link
-                        </label>
-                        <div className="relative">
-                          <div className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground">
-                            <LinkIcon className="w-5 h-5" />
-                          </div>
-                          <input
-                            type="url"
-                            placeholder="https://drive.google.com/file/..."
-                            value={driveLink}
-                            onChange={(e) => setDriveLink(e.target.value)}
-                            className="w-full pl-12 pr-4 py-4 rounded-xl border border-border bg-muted/20 focus:outline-none focus:ring-2 focus:ring-secondary/20 focus:border-secondary transition-all"
-                            required
-                            disabled={isLoading}
-                          />
+                        <div className="text-center">
+                          <h3 className="text-2xl font-bold tracking-tight mb-2">
+                            {isDragActive ? "Drop video here" : "Drop Match Footage"}
+                          </h3>
+                          <p className="text-sm text-white/40 uppercase tracking-widest font-bold">MP4, MOV, AVI (Max 100MB)</p>
                         </div>
                       </div>
-                      
-                      <button
-                        type="submit"
-                        disabled={isLoading || !driveLink}
-                        className="w-full py-4 bg-primary text-primary-foreground font-bold rounded-xl shadow-lg hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2"
-                      >
-                        {isLoading ? (
-                          <>
-                            <Loader2 className="w-5 h-5 animate-spin" />
-                            Processing...
-                          </>
-                        ) : (
-                          <>
-                            Start Analysis
-                            <FileVideo className="w-5 h-5" />
-                          </>
-                        )}
-                      </button>
-                    </form>
-                  </motion.div>
-                )}
-              </AnimatePresence>
+                    </motion.div>
+                  ) : (
+                    <motion.div
+                      key="link"
+                      initial={{ opacity: 0, scale: 0.98 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      exit={{ opacity: 0, scale: 0.98 }}
+                      className="p-8 bg-white/[0.02] border border-white/10 rounded-[2rem]"
+                    >
+                      <form onSubmit={handleLinkSubmit} className="space-y-6">
+                        <div className="relative">
+                          <input
+                            type="url"
+                            placeholder="Paste Google Drive public link..."
+                            value={driveLink}
+                            onChange={(e) => setDriveLink(e.target.value)}
+                            className="w-full px-6 py-5 rounded-2xl border border-white/10 bg-white/5 focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent/50 transition-all text-white placeholder:text-white/20"
+                            required
+                          />
+                        </div>
+                        <button
+                          type="submit"
+                          disabled={!driveLink}
+                          className="w-full py-5 bg-white text-[#0a0c10] font-bold rounded-2xl hover:bg-white/90 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-3 tracking-widest text-xs"
+                        >
+                          START ANALYSIS
+                          <FileVideo className="w-4 h-4" />
+                        </button>
+                      </form>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+              
+              <div className="flex items-center justify-center gap-12 pt-12">
+                {[
+                  "KINETIC CHAIN",
+                  "UNIT TURN",
+                  "TACTICAL HEATMAPS"
+                ].map((tag) => (
+                  <div key={tag} className="flex items-center gap-2">
+                    <Check className="w-3 h-3 text-accent" />
+                    <span className="text-[10px] font-bold tracking-[0.2em] text-white/30 uppercase">{tag}</span>
+                  </div>
+                ))}
+              </div>
             </div>
-          </div>
-          
-          <p className="text-center text-sm text-muted-foreground mt-8 max-w-md mx-auto">
-            By uploading, you agree to our Terms of Service. Analysis usually takes 1-2 minutes depending on video length.
-          </p>
+          )}
         </motion.div>
       </main>
+
+      {/* Footer Branding */}
+      <footer className="py-12 border-t border-white/5">
+        <div className="container mx-auto px-4 flex flex-col md:flex-row items-center justify-between gap-8">
+          <div className="text-[10px] font-bold tracking-[0.2em] text-white/30 uppercase">
+            © 2026 RALLYCOACH AI / BIOMETRICS DIVISION
+          </div>
+          <div className="flex gap-12">
+            {["PRIVACY", "TELEMETRY", "DOCS"].map(link => (
+              <a key={link} href="#" className="text-[10px] font-bold tracking-[0.2em] text-white/30 hover:text-white transition-colors">
+                {link}
+              </a>
+            ))}
+          </div>
+        </div>
+      </footer>
     </div>
   );
 }
