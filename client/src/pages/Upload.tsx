@@ -255,13 +255,13 @@ export default function UploadPage() {
                       initial={{ opacity: 0, scale: 0.98 }}
                       animate={{ opacity: 1, scale: 1 }}
                       exit={{ opacity: 0, scale: 0.98 }}
-                      {...getRootProps()}
                       className={`relative p-1 rounded-[2rem] border-2 border-dashed transition-all duration-500 overflow-hidden cursor-pointer ${
                         isDragActive 
                           ? 'border-accent bg-accent/5 shadow-[0_0_30px_rgba(132,206,166,0.1)]' 
                           : 'border-white/10 bg-white/[0.02] hover:bg-white/[0.04]'
                       }`}
                     >
+                      <div {...getRootProps()} className="absolute inset-0 z-10" />
                       <input {...getInputProps()} />
                       <div className="relative py-20 flex flex-col items-center justify-center gap-6">
                         <div className="w-16 h-16 rounded-2xl bg-white/5 flex items-center justify-center border border-white/10">
