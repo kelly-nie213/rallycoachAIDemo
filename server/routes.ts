@@ -4,13 +4,6 @@ import { storage } from "./storage";
 import { api } from "@shared/routes";
 import { z } from "zod";
 import { registerObjectStorageRoutes } from "./replit_integrations/object_storage";
-import OpenAI from "openai";
-
-// Initialize OpenAI client using Replit AI env vars
-const openai = new OpenAI({
-  apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
-  baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
-});
 
 export async function registerRoutes(
   httpServer: Server,
@@ -74,68 +67,67 @@ export async function registerRoutes(
       // Start background processing
       (async () => {
         try {
-          // Simulate computer vision processing time
-          // Instead of setTimeout, we'll run the inference script
           const { exec } = await import("child_process");
           const { promisify } = await import("util");
           const execAsync = promisify(exec);
 
-          // In a real app, we might download the file from object storage first if it's not local
-          // For this dummy script, we just pass the URL/path
-          const { stdout, stderr } = await execAsync(`python3 inference.py "${video.originalUrl}"`);
+          // Run the inference pipeline script
+          // The script handles: video processing, pose detection, biomechanics, 
+          // annotated video generation, and Gemini LLM analysis
+          console.log(`[Inference] Starting pipeline for: ${video.originalUrl}`);
           
-          if (stderr && !stdout.includes("success.done")) {
-            console.error("Inference script stderr:", stderr);
+          const { stdout, stderr } = await execAsync(
+            `python3 inference.py "${video.originalUrl}" "/tmp"`,
+            { maxBuffer: 10 * 1024 * 1024 } // 10MB buffer for large output
+          );
+          
+          if (stderr) {
+            console.warn("Inference script stderr:", stderr);
           }
 
           console.log("Inference output:", stdout);
 
-          // Extract dummy results if present in stdout
-          let contextPrompt = `Analyze the tennis performance in this video: ${video.originalUrl}. Provide professional insights for a recreational player.`;
-          if (stdout.includes("Test Results")) {
-            const dummyResults = stdout.split('\n').find(line => line.includes("Test Results"));
-            contextPrompt += ` Use these technical findings from the vision model: ${dummyResults}. Ensure the exact phrase "Test Results" is included in the elite strengths section.`;
+          // Parse the structured JSON output from inference.py
+          // The script outputs JSON between INFERENCE_RESULT_JSON_START and INFERENCE_RESULT_JSON_END markers
+          let analysisData = "{}";
+          let annotatedUrl = video.originalUrl;
+          
+          if (stdout.includes("INFERENCE_RESULT_JSON_START") && stdout.includes("INFERENCE_RESULT_JSON_END")) {
+            const jsonStart = stdout.indexOf("INFERENCE_RESULT_JSON_START") + "INFERENCE_RESULT_JSON_START".length;
+            const jsonEnd = stdout.indexOf("INFERENCE_RESULT_JSON_END");
+            const jsonString = stdout.substring(jsonStart, jsonEnd).trim();
+            
+            try {
+              const inferenceResult = JSON.parse(jsonString);
+              console.log("[Inference] Parsed result:", inferenceResult.status);
+              
+              // Extract the analysis portion for the UI
+              // The inference.py script now returns the complete Gemini analysis
+              if (inferenceResult.analysis) {
+                analysisData = JSON.stringify(inferenceResult.analysis);
+              }
+              
+              // Get the annotated video path if available
+              if (inferenceResult.video?.annotated) {
+                annotatedUrl = inferenceResult.video.annotated;
+              }
+            } catch (parseError) {
+              console.error("[Inference] Failed to parse JSON output:", parseError);
+              // Fall back to using original video URL
+            }
+          } else if (!stdout.includes("success.done")) {
+            throw new Error("Inference script did not complete successfully");
           }
 
-          // Generate structured recommendation using OpenAI
-          const completion = await openai.chat.completions.create({
-            model: "gpt-4o",
-            messages: [
-              {
-                role: "system",
-                content: `You are an expert tennis coach. Analyze the player's performance and provide structured feedback in JSON format.
-                The response MUST be a JSON object with the following structure:
-                {
-                  "dna": {
-                    "technical": number (0-100),
-                    "tactical": number (0-100),
-                    "summary": "string (high-level professional analysis)"
-                  },
-                  "strengths": ["string (at least 3 elite strengths)"],
-                  "fixes": ["string (at least 2 biomechanical fixes)"],
-                  "plan": [
-                    { "title": "DRILL 1", "description": "string" },
-                    { "title": "DRILL 2", "description": "string" }
-                  ]
-                }`
-              },
-              {
-                role: "user",
-                content: contextPrompt
-              }
-            ],
-            response_format: { type: "json_object" },
-          });
-
-          const analysisData = completion.choices[0].message.content || "{}";
-
-          // Update video with results
+          // Update video record with results from inference.py
           await storage.updateVideo(id, {
             status: "completed",
-            annotatedUrl: video.originalUrl,
+            annotatedUrl: annotatedUrl,
             analysisData: analysisData,
             recommendation: "Analysis complete. See dashboard for details."
           });
+          
+          console.log(`[Inference] Completed for video ${id}`);
         } catch (err) {
           console.error("Background processing failed:", err);
           await storage.updateVideo(id, { status: "failed" });
