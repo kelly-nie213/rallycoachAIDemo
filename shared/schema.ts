@@ -17,7 +17,7 @@ export const insertVideoSchema = createInsertSchema(videos).omit({
   createdAt: true,
   annotatedUrl: true,
   recommendation: true,
-  status: true
+  analysisData: true,
 });
 
 export type Video = typeof videos.$inferSelect;
