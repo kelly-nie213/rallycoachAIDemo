@@ -2,24 +2,65 @@ import { useState, useCallback } from "react";
 import { useLocation } from "wouter";
 import { useDropzone } from "react-dropzone";
 import { motion, AnimatePresence } from "framer-motion";
-import { Upload as UploadIcon, FileVideo, Link as LinkIcon, Loader2, Youtube } from "lucide-react";
+import { Upload as UploadIcon, FileVideo, Link as LinkIcon, Loader2 } from "lucide-react";
 import { Navbar } from "@/components/Navbar";
-import { useUploadVideo } from "@/hooks/use-videos";
 import { useToast } from "@/hooks/use-toast";
+import { useUpload } from "@/hooks/use-upload";
+import { apiRequest } from "@/lib/queryClient";
 
 export default function UploadPage() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState<'file' | 'link'>('file');
   const [driveLink, setDriveLink] = useState("");
-  
-  const uploadVideo = useUploadVideo();
+  const [isProcessing, setIsProcessing] = useState(false);
 
-  const onDrop = useCallback((acceptedFiles: File[]) => {
-    if (acceptedFiles.length > 0) {
-      handleFileUpload(acceptedFiles[0]);
+  // Use the object storage upload hook
+  const { uploadFile, isUploading, progress } = useUpload({
+    onError: (error) => {
+      toast({
+        title: "Upload Failed",
+        description: error.message,
+        variant: "destructive",
+      });
     }
-  }, []);
+  });
+
+  const createVideoRecord = async (url: string) => {
+    try {
+      setIsProcessing(true);
+      const res = await apiRequest("POST", "/api/videos/upload", { originalUrl: url });
+      const video = await res.json();
+      
+      // Trigger processing
+      await apiRequest("POST", `/api/videos/${video.id}/process`);
+      
+      setLocation(`/results/${video.id}`);
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to create video record. Please try again.",
+        variant: "destructive",
+      });
+      setIsProcessing(false);
+    }
+  };
+
+  const onDrop = useCallback(async (acceptedFiles: File[]) => {
+    if (acceptedFiles.length > 0) {
+      const file = acceptedFiles[0];
+      try {
+        const result = await uploadFile(file);
+        if (result) {
+          // result.objectPath is the path in object storage (e.g., /objects/uploads/uuid)
+          // We can use this as the URL for the backend to reference
+          await createVideoRecord(result.objectPath);
+        }
+      } catch (error) {
+        console.error("Upload failed:", error);
+      }
+    }
+  }, [uploadFile]);
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
@@ -27,35 +68,17 @@ export default function UploadPage() {
       'video/*': ['.mp4', '.mov', '.avi', '.mkv']
     },
     maxFiles: 1,
-    multiple: false
+    multiple: false,
+    disabled: isUploading || isProcessing
   });
-
-  const handleFileUpload = async (file: File) => {
-    try {
-      const formData = new FormData();
-      formData.append("video", file);
-      
-      const result = await uploadVideo.mutateAsync(formData);
-      setLocation(`/results/${result.id}`);
-    } catch (error) {
-      // Error handled by hook
-    }
-  };
 
   const handleLinkSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!driveLink) return;
-
-    try {
-      const formData = new FormData();
-      formData.append("driveLink", driveLink);
-      
-      const result = await uploadVideo.mutateAsync(formData);
-      setLocation(`/results/${result.id}`);
-    } catch (error) {
-      // Error handled by hook
-    }
+    await createVideoRecord(driveLink);
   };
+
+  const isLoading = isUploading || isProcessing;
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
@@ -79,6 +102,7 @@ export default function UploadPage() {
             <div className="flex border-b border-border/60">
               <button
                 onClick={() => setActiveTab('file')}
+                disabled={isLoading}
                 className={`flex-1 py-4 text-center font-semibold transition-colors ${
                   activeTab === 'file' 
                     ? 'bg-secondary/5 text-secondary border-b-2 border-secondary' 
@@ -89,6 +113,7 @@ export default function UploadPage() {
               </button>
               <button
                 onClick={() => setActiveTab('link')}
+                disabled={isLoading}
                 className={`flex-1 py-4 text-center font-semibold transition-colors ${
                   activeTab === 'link' 
                     ? 'bg-secondary/5 text-secondary border-b-2 border-secondary' 
@@ -118,10 +143,12 @@ export default function UploadPage() {
                       }`}
                     >
                       <input {...getInputProps()} />
-                      {uploadVideo.isPending ? (
+                      {isLoading ? (
                         <div className="flex flex-col items-center text-secondary">
                           <Loader2 className="w-12 h-12 animate-spin mb-4" />
-                          <p className="font-medium">Uploading video...</p>
+                          <p className="font-medium">
+                            {isUploading ? `Uploading... ${progress}%` : "Processing video..."}
+                          </p>
                         </div>
                       ) : (
                         <>
@@ -162,16 +189,17 @@ export default function UploadPage() {
                             onChange={(e) => setDriveLink(e.target.value)}
                             className="w-full pl-12 pr-4 py-4 rounded-xl border border-border bg-muted/20 focus:outline-none focus:ring-2 focus:ring-secondary/20 focus:border-secondary transition-all"
                             required
+                            disabled={isLoading}
                           />
                         </div>
                       </div>
                       
                       <button
                         type="submit"
-                        disabled={uploadVideo.isPending || !driveLink}
+                        disabled={isLoading || !driveLink}
                         className="w-full py-4 bg-primary text-primary-foreground font-bold rounded-xl shadow-lg hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2"
                       >
-                        {uploadVideo.isPending ? (
+                        {isLoading ? (
                           <>
                             <Loader2 className="w-5 h-5 animate-spin" />
                             Processing...
