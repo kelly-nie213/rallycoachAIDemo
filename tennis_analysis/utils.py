@@ -13,11 +13,12 @@ from mini_court import MiniCourt
 # ======================================================
 # CONFIG
 # ======================================================
-INPUT_VIDEO = "/Users/kellynie/Desktop/sciencetennis_project/tennis_analysis/input_videos/input_video.mp4"
-OUTPUT_VIDEO = "/Users/kellynie/Desktop/sciencetennis_project/tennis_analysis/output_videos/output_video.mp4"
+import os
 
-BALL_MODEL = "/Users/kellynie/Desktop/sciencetennis_project/tennis_analysis/models/last.pt"
-COURT_MODEL = "/Users/kellynie/Desktop/sciencetennis_project/tennis_analysis/models/keypoints_model.pth"
+# Default paths (can be overridden by function parameters)
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+DEFAULT_BALL_MODEL = os.path.join(BASE_DIR, "models", "last.pt")
+DEFAULT_COURT_MODEL = os.path.join(BASE_DIR, "models", "keypoints_model.pth")
 
 FPS = 24
 TABLE_WIDTH = 320
@@ -150,17 +151,48 @@ def draw_speed_table(height, stats_row):
 # ======================================================
 # MAIN
 # ======================================================
-def main():
-    video_frames = read_video(INPUT_VIDEO)
+def main(input_video: str, output_video: str, 
+         ball_model: str | None = None, court_model: str | None = None) -> dict:
+    """
+    Main video analysis pipeline.
+    
+    Args:
+        input_video: Path to input video file
+        output_video: Path for output annotated video
+        ball_model: Path to ball detection model (optional, uses default)
+        court_model: Path to court detection model (optional, uses default)
+    
+    Returns:
+        Dictionary containing analysis results and metrics
+    """
+    if input_video is None:
+        raise ValueError("input_video path is required")
+    if output_video is None:
+        raise ValueError("output_video path is required")
+    
+    # Use default models if not specified
+    ball_model = ball_model or DEFAULT_BALL_MODEL
+    court_model = court_model or DEFAULT_COURT_MODEL
+    
+    print(f"[TennisAnalysis] Loading video: {input_video}")
+    print(f"[TennisAnalysis] Output path: {output_video}")
+    print(f"[TennisAnalysis] Ball model: {ball_model}")
+    print(f"[TennisAnalysis] Court model: {court_model}")
+    
+    video_frames = read_video(input_video)
+    print(f"[TennisAnalysis] Loaded {len(video_frames)} frames")
 
     player_tracker = PlayerTracker(model_path="yolov8x")
-    ball_tracker = BallTracker(model_path=BALL_MODEL)
+    ball_tracker = BallTracker(model_path=ball_model)
 
+    print("[TennisAnalysis] Running player detection...")
     player_dets = player_tracker.detect_frames(video_frames)
+    print("[TennisAnalysis] Running ball detection...")
     ball_dets = ball_tracker.detect_frames(video_frames)
     ball_dets = ball_tracker.interpolate_ball_positions(ball_dets)
 
-    court_detector = CourtLineDetector(COURT_MODEL)
+    print("[TennisAnalysis] Detecting court lines...")
+    court_detector = CourtLineDetector(court_model)
     court_kps = court_detector.predict(video_frames[0])
     player_dets = player_tracker.choose_and_filter_players(
         court_kps, player_dets)
@@ -366,8 +398,59 @@ def main():
 
         final_frames.append(np.hstack((frame, table1, table2)))
 
-    save_video(final_frames, OUTPUT_VIDEO)
+    print(f"[TennisAnalysis] Saving annotated video to: {output_video}")
+    save_video(final_frames, output_video)
+    print(f"[TennisAnalysis] Video saved successfully")
+    
+    # Compile analysis results to return
+    total_frames = len(video_frames)
+    duration_seconds = total_frames / FPS
+    
+    # Calculate aggregate statistics
+    final_stats = df.iloc[-1] if len(df) > 0 else {}
+    
+    player_1_shots = int(final_stats.get('player_1_number_of_shots', 0))
+    player_2_shots = int(final_stats.get('player_2_number_of_shots', 0))
+    
+    results = {
+        "video": {
+            "input": input_video,
+            "output": output_video,
+            "total_frames": total_frames,
+            "duration_seconds": duration_seconds,
+            "fps": FPS
+        },
+        "players": {
+            "player_1": {
+                "shots": player_1_shots,
+                "avg_shot_speed_kmh": float(final_stats.get('player_1_average_shot_speed', 0)),
+                "avg_movement_speed_kmh": float(final_stats.get('player_1_average_player_speed', 0)),
+                "distance_traveled_m": distance_traveled.get(1, 0)
+            },
+            "player_2": {
+                "shots": player_2_shots,
+                "avg_shot_speed_kmh": float(final_stats.get('player_2_average_shot_speed', 0)),
+                "avg_movement_speed_kmh": float(final_stats.get('player_2_average_player_speed', 0)),
+                "distance_traveled_m": distance_traveled.get(2, 0)
+            }
+        },
+        "ball_tracking": {
+            "shot_frames": ball_shot_frames,
+            "total_shots": len(ball_shot_frames) - 1 if len(ball_shot_frames) > 1 else 0,
+            "last_bounce_status": ball_in_out_status
+        },
+        "court_detection": {
+            "keypoints_detected": len(court_kps) if court_kps is not None else 0
+        }
+    }
+    
+    print(f"[TennisAnalysis] Analysis complete: {player_1_shots + player_2_shots} total shots detected")
+    return results
 
 
 if __name__ == "__main__":
-    main()
+    import sys
+    if len(sys.argv) >= 3:
+        main(input_video=sys.argv[1], output_video=sys.argv[2])
+    else:
+        print("Usage: python utils.py <input_video> <output_video>")
