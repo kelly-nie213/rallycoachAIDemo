@@ -211,10 +211,22 @@ class MiniCourt():
 
 
    def convert_bounding_boxes_to_mini_court_coordinates(self,player_boxes, ball_boxes, original_court_key_points ):
-       player_heights = {
-           1: constants.PLAYER_1_HEIGHT_METERS,
-           2: constants.PLAYER_2_HEIGHT_METERS
-       }
+       # Map actual player IDs to heights (first player gets height 1, second gets height 2)
+       # This handles cases where YOLOv8 tracker assigns IDs like 4, 5 instead of 1, 2
+       base_player_heights = [constants.PLAYER_1_HEIGHT_METERS, constants.PLAYER_2_HEIGHT_METERS]
+       
+       # Build dynamic player_heights mapping from first frame with players
+       player_heights = {}
+       for frame_bbox in player_boxes:
+           if len(frame_bbox) >= 2:
+               sorted_ids = sorted(frame_bbox.keys())[:2]  # Take first 2 player IDs
+               for idx, pid in enumerate(sorted_ids):
+                   player_heights[pid] = base_player_heights[idx]
+               break
+       
+       # Fallback if no frame has 2 players
+       if not player_heights:
+           player_heights = {1: constants.PLAYER_1_HEIGHT_METERS, 2: constants.PLAYER_2_HEIGHT_METERS}
 
 
        output_player_boxes= []
@@ -229,6 +241,11 @@ class MiniCourt():
 
            output_player_bboxes_dict = {}
            for player_id, bbox in player_bbox.items():
+               # Skip player IDs we don't have height mappings for
+               if player_id not in player_heights:
+                   # Assign default height for unknown players
+                   player_heights[player_id] = constants.PLAYER_1_HEIGHT_METERS
+               
                foot_position = get_foot_position(bbox)
 
 
