@@ -11,6 +11,7 @@ This script processes uploaded tennis match footage through the following stages
 
 Usage:
     python3 inference.py <video_path> <output_dir>
+    Test with: python3 inference.py sample.mp4 /tmp
 """
 
 import sys
