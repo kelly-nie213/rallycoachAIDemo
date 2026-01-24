@@ -4,15 +4,15 @@ RallyCoach AI - Video Inference Pipeline
 =========================================
 
 This script processes uploaded tennis match footage through the following stages:
-1. Video Processing - Extract frames and detect player movements
-2. Annotated Video Generation - Overlay skeletal tracking and shot analysis
-3. Gemini LLM Analysis - Generate professional coaching insights
-4. Output Results - Return structured JSON for UI display
+1. Video Processing - Extract frames and detect player/ball movements
+2. Court Detection - Identify court lines and create mini-court visualization
+3. Statistics Calculation - Compute shot speeds, recovery times, distances
+4. Annotated Video Generation - Overlay tracking and analytics on video
+5. Gemini LLM Analysis - Generate professional coaching insights
+6. Output Results - Return structured JSON for UI display
 
 Usage:
     python3 inference.py <video_path> <output_dir>
-    Test with: python3 inference.py sample.mp4 /tmp
-    Add more test for this file.
 """
 
 import sys
@@ -20,663 +20,664 @@ import os
 import json
 import time
 from typing import Dict, List, Any, Optional
+from copy import deepcopy
+
+# Add tennis_analysis to path
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), 'tennis_analysis'))
+
+# Import tennis analysis utilities
+import cv2  # type: ignore
+import numpy as np
+import pandas as pd
+
+from utils import (read_video, save_video, measure_distance,
+                   convert_pixel_distance_to_meters)
+import constants
+from trackers import PlayerTracker, BallTracker
+from court_line_detector import CourtLineDetector
+from mini_court import MiniCourt
 
 # ============================================================================
 # CONFIGURATION
 # ============================================================================
 
-# Frame extraction settings
-FRAME_SAMPLE_RATE = 5  # Extract every Nth frame for analysis
-TARGET_FPS = 30  # Target frames per second for annotated video
+# Model paths (relative to tennis_analysis folder)
+TENNIS_ANALYSIS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'tennis_analysis')
+BALL_MODEL = os.path.join(TENNIS_ANALYSIS_DIR, "models", "last.pt")
+COURT_MODEL = os.path.join(TENNIS_ANALYSIS_DIR, "models", "keypoints_model.pth")
 
-# Pose detection thresholds
-POSE_CONFIDENCE_THRESHOLD = 0.6
-JOINT_VISIBILITY_THRESHOLD = 0.5
+# Video settings
+FPS = 24
+TABLE_WIDTH = 320
+
+# Recovery analysis settings
+RECOVERY_RADIUS_METERS = 1.5
+BALL_TOUCH_RADIUS_PX = 35
+RECOVERY_TOUCH_BUFFER = 10
 
 # Gemini API settings (uses Replit AI Integrations - no API key needed)
-GEMINI_MODEL = "gemini-2.5-flash"  # Fast model for video analysis
-GEMINI_BASE_URL = os.environ.get("AI_INTEGRATIONS_GEMINI_BASE_URL", "")
-GEMINI_API_KEY = os.environ.get("AI_INTEGRATIONS_GEMINI_API_KEY", "")
+GEMINI_MODEL = "gemini-2.5-flash"
+
 
 # ============================================================================
-# STEP 1: VIDEO PROCESSING
+# TABLE DRAWING UTILITIES
 # ============================================================================
 
+def draw_ball_table(height: int, ball_coords: Optional[tuple], player_coords: dict,
+                    last_ball_speed: float, recovery_times: dict,
+                    ball_in_out_status: str, distance_traveled: dict) -> np.ndarray:
+    """Draw the ball/recovery statistics table overlay."""
+    table = np.full((height, TABLE_WIDTH, 3), 245, dtype=np.uint8)
+    y, dy = 40, 30
 
-def load_video(video_path: str) -> Dict[str, Any]:
+    cv2.putText(table, "LIVE STATS", (20, y), cv2.FONT_HERSHEY_SIMPLEX, 0.9,
+                (0, 0, 0), 2)
+    y += dy * 2
+
+    if ball_coords:
+        cv2.putText(table, f"Ball X: {ball_coords[0]}", (20, y),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.65, (0, 0, 0), 2)
+        y += dy
+        cv2.putText(table, f"Ball Y: {ball_coords[1]}", (20, y),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.65, (0, 0, 0), 2)
+        y += dy
+    else:
+        cv2.putText(table, "Ball not detected", (20, y),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.65, (120, 120, 120), 2)
+        y += dy * 2
+
+    cv2.putText(table, f"Ball Status: {ball_in_out_status}", (20, y),
+                cv2.FONT_HERSHEY_SIMPLEX, 0.65, (0, 0, 0), 2)
+    y += dy * 2
+
+    for pid in [1, 2]:
+        cv2.putText(table, f"P{pid} Dist: {distance_traveled.get(pid, 0):.1f}m",
+                    (20, y), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 0), 2)
+        y += dy
+        rec_time = recovery_times.get(pid, -1)
+        rec_str = f"{rec_time:.2f}s" if rec_time >= 0 else "..."
+        cv2.putText(table, f"P{pid} Recovery: {rec_str}", (20, y),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 0), 2)
+        y += dy
+
+    y += dy
+    cv2.putText(table, "Last Shot Speed", (20, y), cv2.FONT_HERSHEY_SIMPLEX,
+                0.7, (0, 0, 0), 2)
+    y += dy
+
+    if last_ball_speed > 0:
+        cv2.putText(table, f"{last_ball_speed:.1f} km/h", (20, y),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 120, 0), 2)
+    else:
+        cv2.putText(table, "...", (20, y), cv2.FONT_HERSHEY_SIMPLEX, 0.8,
+                    (140, 140, 140), 2)
+
+    return table
+
+
+def draw_speed_table(height: int, stats_row: pd.Series) -> np.ndarray:
+    """Draw the player speed statistics table overlay."""
+    table = np.full((height, TABLE_WIDTH, 3), 235, dtype=np.uint8)
+    y, dy = 40, 30
+
+    cv2.putText(table, "PLAYER STATS", (20, int(y)),
+                cv2.FONT_HERSHEY_SIMPLEX, 0.9, (0, 0, 0), 2)
+    y += dy * 2
+
+    for pid in [1, 2]:
+        cv2.putText(table, f"PLAYER {pid}", (20, int(y)),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.75, (0, 0, 0), 2)
+        y += dy
+
+        cv2.putText(
+            table,
+            f"Last Shot: {stats_row[f'player_{pid}_last_shot_speed']:.1f} km/h",
+            (20, int(y)), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 0), 2)
+        y += dy
+
+        cv2.putText(
+            table,
+            f"Avg Shot: {stats_row[f'player_{pid}_average_shot_speed']:.1f} km/h",
+            (20, int(y)), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 0), 2)
+        y += dy
+
+        cv2.putText(
+            table,
+            f"Avg Move: {stats_row[f'player_{pid}_average_player_speed']:.1f} km/h",
+            (20, int(y)), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 0), 2)
+        y += int(dy * 1.5)
+
+    return table
+
+
+# ============================================================================
+# MAIN VIDEO ANALYSIS PIPELINE
+# ============================================================================
+
+def analyze_video(input_video: str, output_video: str) -> Dict[str, Any]:
     """
-    Load and validate the input video file.
-    
-    In production, this would use OpenCV (cv2) to:
-    - Open the video file
-    - Extract metadata (duration, fps, resolution)
-    - Validate format compatibility
-    
-    Args:
-        video_path: Path to the uploaded video file
-        
-    Returns:
-        Dictionary containing video metadata and frame iterator
-    """
-    print(f"[STEP 1.1] Loading video: {video_path}")
-
-    # PSEUDO CODE - Actual implementation would use OpenCV
-    # ---------------------------------------------------------
-    # import cv2
-    # cap = cv2.VideoCapture(video_path)
-    # if not cap.isOpened():
-    #     raise ValueError(f"Cannot open video: {video_path}")
-    #
-    # metadata = {
-    #     "width": int(cap.get(cv2.CAP_PROP_FRAME_WIDTH)),
-    #     "height": int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT)),
-    #     "fps": cap.get(cv2.CAP_PROP_FPS),
-    #     "frame_count": int(cap.get(cv2.CAP_PROP_FRAME_COUNT)),
-    #     "duration_seconds": frame_count / fps
-    # }
-    # ---------------------------------------------------------
-
-    # DUMMY IMPLEMENTATION - Simulated metadata
-    metadata = {
-        "width": 1920,
-        "height": 1080,
-        "fps": 30.0,
-        "frame_count": 450,  # ~15 seconds of footage
-        "duration_seconds": 15.0,
-        "path": video_path
-    }
-
-    print(
-        f"[STEP 1.1] Video loaded: {metadata['duration_seconds']:.1f}s @ {metadata['fps']}fps"
-    )
-    return metadata
-
-
-def extract_frames(video_metadata: Dict[str, Any]) -> List[Dict[str, Any]]:
-    """
-    Extract key frames from the video for analysis.
-    
-    In production, this would:
-    - Sample frames at regular intervals
-    - Detect scene changes for important moments
-    - Apply motion detection to find action sequences
-    
-    Args:
-        video_metadata: Video metadata from load_video()
-        
-    Returns:
-        List of frame dictionaries with timestamps and image data
-    """
-    print(f"[STEP 1.2] Extracting frames (sample rate: 1/{FRAME_SAMPLE_RATE})")
-
-    # PSEUDO CODE - Actual implementation
-    # ---------------------------------------------------------
-    # frames = []
-    # cap = cv2.VideoCapture(video_metadata["path"])
-    # frame_idx = 0
-    #
-    # while True:
-    #     ret, frame = cap.read()
-    #     if not ret:
-    #         break
-    #
-    #     if frame_idx % FRAME_SAMPLE_RATE == 0:
-    #         timestamp = frame_idx / video_metadata["fps"]
-    #         frames.append({
-    #             "index": frame_idx,
-    #             "timestamp": timestamp,
-    #             "image": frame,  # numpy array (H, W, 3)
-    #             "motion_score": calculate_motion_score(frame, prev_frame)
-    #         })
-    #
-    #     frame_idx += 1
-    #
-    # cap.release()
-    # ---------------------------------------------------------
-
-    # DUMMY IMPLEMENTATION - Simulated frames
-    num_frames = video_metadata["frame_count"] // FRAME_SAMPLE_RATE
-    frames = []
-
-    for i in range(num_frames):
-        timestamp = (i * FRAME_SAMPLE_RATE) / video_metadata["fps"]
-        frames.append({
-            "index": i * FRAME_SAMPLE_RATE,
-            "timestamp": timestamp,
-            "image": None,  # Would be numpy array in production
-            "motion_score": 0.7 + (0.3 * (i % 5) / 5)  # Simulated motion
-        })
-
-    print(f"[STEP 1.2] Extracted {len(frames)} frames for analysis")
-    return frames
-
-
-def detect_poses(frames: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-    """
-    Run pose detection on extracted frames to identify player skeleton.
-    
-    In production, this would use MediaPipe or OpenPose to:
-    - Detect human body keypoints (joints)
-    - Track player movement across frames
-    - Calculate joint angles and velocities
+    Run the complete tennis video analysis pipeline.
     
     Args:
-        frames: List of frame dictionaries from extract_frames()
+        input_video: Path to input video file
+        output_video: Path to save annotated output video
         
     Returns:
-        List of pose data dictionaries with keypoint coordinates
+        Dictionary containing all analysis results and statistics
     """
-    print(f"[STEP 1.3] Running pose detection on {len(frames)} frames")
-
-    # PSEUDO CODE - Using MediaPipe Pose
-    # ---------------------------------------------------------
-    # import mediapipe as mp
-    #
-    # mp_pose = mp.solutions.pose
-    # pose = mp_pose.Pose(
-    #     static_image_mode=False,
-    #     model_complexity=2,
-    #     min_detection_confidence=POSE_CONFIDENCE_THRESHOLD
-    # )
-    #
-    # poses = []
-    # for frame_data in frames:
-    #     results = pose.process(cv2.cvtColor(frame_data["image"], cv2.COLOR_BGR2RGB))
-    #
-    #     if results.pose_landmarks:
-    #         keypoints = {}
-    #         for idx, landmark in enumerate(results.pose_landmarks.landmark):
-    #             keypoints[mp_pose.PoseLandmark(idx).name] = {
-    #                 "x": landmark.x,
-    #                 "y": landmark.y,
-    #                 "z": landmark.z,
-    #                 "visibility": landmark.visibility
-    #             }
-    #
-    #         poses.append({
-    #             "frame_index": frame_data["index"],
-    #             "timestamp": frame_data["timestamp"],
-    #             "keypoints": keypoints,
-    #             "confidence": calculate_avg_confidence(keypoints)
-    #         })
-    #
-    # pose.close()
-    # ---------------------------------------------------------
-
-    # DUMMY IMPLEMENTATION - Simulated pose data
-    poses = []
-    keypoint_names = [
-        "LEFT_SHOULDER", "RIGHT_SHOULDER", "LEFT_ELBOW", "RIGHT_ELBOW",
-        "LEFT_WRIST", "RIGHT_WRIST", "LEFT_HIP", "RIGHT_HIP", "LEFT_KNEE",
-        "RIGHT_KNEE", "LEFT_ANKLE", "RIGHT_ANKLE"
-    ]
-
-    for frame_data in frames:
-        keypoints = {}
-        for name in keypoint_names:
-            keypoints[name] = {
-                "x": 0.5 + (hash(name) % 100) / 200,
-                "y": 0.5 + (hash(name + "y") % 100) / 200,
-                "z": 0.0,
-                "visibility": 0.85
-            }
-
-        poses.append({
-            "frame_index": frame_data["index"],
-            "timestamp": frame_data["timestamp"],
-            "keypoints": keypoints,
-            "confidence": 0.87
-        })
-
-    print(f"[STEP 1.3] Detected poses in {len(poses)} frames")
-    return poses
-
-
-def analyze_biomechanics(poses: List[Dict[str, Any]]) -> Dict[str, Any]:
-    """
-    Analyze pose data to extract biomechanical metrics.
+    print(f"[STEP 1] Loading video: {input_video}")
     
-    This calculates tennis-specific measurements:
-    - Kinetic chain efficiency (sequential body segment activation)
-    - Core rotation angle during strokes
-    - Shoulder-hip separation at contact
-    - Racket swing path analysis
-    
-    Args:
-        poses: List of pose dictionaries from detect_poses()
+    # Check if models exist
+    if not os.path.exists(BALL_MODEL):
+        print(f"[WARNING] Ball model not found at {BALL_MODEL}")
+        print("[INFO] Using default YOLOv8 model for ball detection")
+        ball_model_path = "yolov8n"  # Fallback to pretrained
+    else:
+        ball_model_path = BALL_MODEL
         
-    Returns:
-        Dictionary of biomechanical analysis results
-    """
-    print(f"[STEP 1.4] Analyzing biomechanics from {len(poses)} poses")
-
-    # PSEUDO CODE - Biomechanical calculations
-    # ---------------------------------------------------------
-    # def calculate_angle(p1, p2, p3):
-    #     """Calculate angle at p2 between p1-p2-p3"""
-    #     v1 = np.array([p1['x'] - p2['x'], p1['y'] - p2['y']])
-    #     v2 = np.array([p3['x'] - p2['x'], p3['y'] - p2['y']])
-    #     angle = np.arccos(np.dot(v1, v2) / (np.linalg.norm(v1) * np.linalg.norm(v2)))
-    #     return np.degrees(angle)
-    #
-    # metrics = {
-    #     "elbow_angles": [],
-    #     "hip_rotation": [],
-    #     "shoulder_rotation": [],
-    #     "kinetic_chain_score": []
-    # }
-    #
-    # for pose in poses:
-    #     kp = pose["keypoints"]
-    #
-    #     # Right elbow angle during swing
-    #     elbow_angle = calculate_angle(
-    #         kp["RIGHT_SHOULDER"],
-    #         kp["RIGHT_ELBOW"],
-    #         kp["RIGHT_WRIST"]
-    #     )
-    #     metrics["elbow_angles"].append(elbow_angle)
-    #
-    #     # Hip-shoulder separation (X-factor)
-    #     hip_line = kp["LEFT_HIP"]["x"] - kp["RIGHT_HIP"]["x"]
-    #     shoulder_line = kp["LEFT_SHOULDER"]["x"] - kp["RIGHT_SHOULDER"]["x"]
-    #     separation = abs(shoulder_line - hip_line)
-    #     metrics["hip_rotation"].append(separation)
-    # ---------------------------------------------------------
-
-    # DUMMY IMPLEMENTATION - Simulated biomechanics
+    if not os.path.exists(COURT_MODEL):
+        print(f"[WARNING] Court model not found at {COURT_MODEL}")
+        raise FileNotFoundError(f"Court keypoints model required at {COURT_MODEL}")
+    
+    # Read video frames
+    video_frames = read_video(input_video)
+    total_frames = len(video_frames)
+    print(f"[STEP 1] Loaded {total_frames} frames")
+    
+    # Initialize trackers
+    print("[STEP 2] Initializing trackers...")
+    player_tracker = PlayerTracker(model_path="yolov8x")
+    ball_tracker = BallTracker(model_path=ball_model_path)
+    
+    # Detect players and ball
+    print("[STEP 2] Detecting players...")
+    player_dets = player_tracker.detect_frames(video_frames)
+    
+    print("[STEP 2] Detecting ball...")
+    ball_dets = ball_tracker.detect_frames(video_frames)
+    ball_dets = ball_tracker.interpolate_ball_positions(ball_dets)
+    
+    # Detect court lines
+    print("[STEP 3] Detecting court lines...")
+    court_detector = CourtLineDetector(COURT_MODEL)
+    court_kps = court_detector.predict(video_frames[0])
+    player_dets = player_tracker.choose_and_filter_players(court_kps, player_dets)
+    
+    # Initialize mini court
+    print("[STEP 3] Creating mini court visualization...")
+    mini_court = MiniCourt(video_frames[0])
+    
+    # Convert coordinates to mini court space
+    player_mc, ball_mc = mini_court.convert_bounding_boxes_to_mini_court_coordinates(
+        player_dets, ball_dets, court_kps)
+    
+    # Get ball shot frames
+    ball_shot_frames = ball_tracker.get_ball_shot_frames(ball_dets)
+    baseline_centers = mini_court.get_baseline_centers()
+    
+    # Calculate recovery radius in pixels
+    RECOVERY_RADIUS_PX = (RECOVERY_RADIUS_METERS *
+                          mini_court.get_width_of_mini_court() /
+                          constants.DOUBLE_LINE_WIDTH)
+    
+    # ============================================================================
+    # CALCULATE STATISTICS
+    # ============================================================================
+    print("[STEP 4] Calculating statistics...")
+    
+    ball_in_out_status = "IN"
+    bounce_frames = set(ball_shot_frames[1:])
+    recovery_times_by_frame: Dict[int, Dict[int, float]] = {}
+    
+    # Calculate recovery times
+    for i in range(len(ball_shot_frames) - 1):
+        start, end = ball_shot_frames[i], ball_shot_frames[i + 1]
+        
+        if start not in player_mc or start not in ball_mc:
+            continue
+            
+        players = player_mc[start]
+        if not players:
+            continue
+            
+        hitter = min(
+            players,
+            key=lambda p: measure_distance(players[p], ball_mc[start][1]))
+        opponent = 1 if hitter == 2 else 2
+        
+        recovery_time = -1
+        for f in range(start, end):
+            if f not in player_mc or opponent not in player_mc[f]:
+                continue
+            if measure_distance(
+                    player_mc[f][opponent],
+                    baseline_centers[opponent]) <= RECOVERY_RADIUS_PX:
+                recovery_time = (f - start) / FPS
+                break
+        
+        recovery_times_by_frame[start] = {opponent: recovery_time}
+    
+    # Initialize tracking variables
+    player_ball_touch_time: dict[int, float | None] = {1: None, 2: None}
+    player_circle_touch_time: dict[int, float | None] = {1: None, 2: None}
+    
+    # Initialize stats
+    stats = [{
+        "frame_num": 0,
+        "player_1_number_of_shots": 0,
+        "player_1_total_shot_speed": 0,
+        "player_1_last_shot_speed": 0,
+        "player_1_total_player_speed": 0,
+        "player_1_last_player_speed": 0,
+        "player_2_number_of_shots": 0,
+        "player_2_total_shot_speed": 0,
+        "player_2_last_shot_speed": 0,
+        "player_2_total_player_speed": 0,
+        "player_2_last_player_speed": 0,
+    }]
+    
+    # Calculate shot speeds
+    for i in range(len(ball_shot_frames) - 1):
+        start, end = ball_shot_frames[i], ball_shot_frames[i + 1]
+        dt = (end - start) / FPS
+        if dt == 0:
+            continue
+        
+        if start not in ball_mc or end not in ball_mc:
+            continue
+        if start not in player_mc:
+            continue
+            
+        ball_dist_px = measure_distance(ball_mc[start][1], ball_mc[end][1])
+        ball_dist_m = convert_pixel_distance_to_meters(
+            ball_dist_px, constants.DOUBLE_LINE_WIDTH,
+            mini_court.get_width_of_mini_court())
+        ball_speed = (ball_dist_m / dt) * 3.6
+        
+        players = player_mc[start]
+        if not players:
+            continue
+            
+        hitter = min(
+            players,
+            key=lambda p: measure_distance(players[p], ball_mc[start][1]))
+        opponent = 1 if hitter == 2 else 2
+        
+        if end in player_mc and opponent in player_mc[start] and opponent in player_mc[end]:
+            opp_dist_px = measure_distance(player_mc[start][opponent],
+                                           player_mc[end][opponent])
+            opp_dist_m = convert_pixel_distance_to_meters(
+                opp_dist_px, constants.DOUBLE_LINE_WIDTH,
+                mini_court.get_width_of_mini_court())
+            opp_speed = (opp_dist_m / dt) * 3.6
+        else:
+            opp_speed = 0
+        
+        cur = deepcopy(stats[-1])
+        cur["frame_num"] = start
+        cur[f"player_{hitter}_number_of_shots"] += 1
+        cur[f"player_{hitter}_total_shot_speed"] += ball_speed
+        cur[f"player_{hitter}_last_shot_speed"] = ball_speed
+        cur[f"player_{opponent}_total_player_speed"] += opp_speed
+        cur[f"player_{opponent}_last_player_speed"] = opp_speed
+        stats.append(cur)
+    
+    # Create stats dataframe
+    df = pd.DataFrame(stats)
+    frames_df = pd.DataFrame({"frame_num": range(len(video_frames))})
+    df = pd.merge(frames_df, df, on="frame_num", how="left").ffill().fillna(0)
+    
+    df["player_1_average_shot_speed"] = df["player_1_total_shot_speed"] / df[
+        "player_1_number_of_shots"].replace(0, 1)
+    df["player_2_average_shot_speed"] = df["player_2_total_shot_speed"] / df[
+        "player_2_number_of_shots"].replace(0, 1)
+    df["player_1_average_player_speed"] = df[
+        "player_1_total_player_speed"] / df[
+            "player_2_number_of_shots"].replace(0, 1)
+    df["player_2_average_player_speed"] = df[
+        "player_2_total_player_speed"] / df[
+            "player_1_number_of_shots"].replace(0, 1)
+    
+    # ============================================================================
+    # GENERATE ANNOTATED VIDEO
+    # ============================================================================
+    print("[STEP 5] Drawing annotations...")
+    
+    frames = player_tracker.draw_bboxes(video_frames, player_dets)
+    frames = ball_tracker.draw_bboxes(frames, ball_dets)
+    frames = court_detector.draw_keypoints_on_video(frames, court_kps)
+    frames = mini_court.draw_mini_court(frames)
+    
+    frames = mini_court.draw_circle_on_mini_court(frames, baseline_centers,
+                                                  int(RECOVERY_RADIUS_PX),
+                                                  (255, 0, 0), 2)
+    
+    frames = mini_court.draw_points_on_mini_court(frames, player_mc)
+    frames = mini_court.draw_points_on_mini_court(frames,
+                                                  ball_mc,
+                                                  color=(0, 255, 255))
+    
+    # Track distance traveled
+    distance_traveled = {1: 0.0, 2: 0.0}
+    distance_display = {1: 0.0, 2: 0.0}
+    last_positions: dict[int, tuple[int, int] | None] = {1: None, 2: None}
+    DIST_UPDATE_FRAMES = int(2 * FPS)
+    
+    final_frames = []
+    last_recovery_display: dict[int, float] = {1: 0.0, 2: 0.0}
+    
+    print("[STEP 5] Generating final video frames...")
+    for i, frame in enumerate(frames):
+        cv2.putText(frame, f"Frame: {i}", (10, 30), cv2.FONT_HERSHEY_SIMPLEX,
+                    1, (0, 255, 0), 2)
+        
+        # Update distance traveled
+        if i in player_dets and player_dets[i]:
+            for pid, bbox in player_dets[i].items():
+                if len(bbox) >= 4:
+                    x1, y1, x2, y2 = bbox[:4]
+                    center = (int((x1 + x2) / 2), int((y1 + y2) / 2))
+                    
+                    if last_positions[pid] is not None:
+                        dist_px = measure_distance(last_positions[pid], center)
+                        dist_m = convert_pixel_distance_to_meters(
+                            dist_px, constants.DOUBLE_LINE_WIDTH,
+                            mini_court.get_width_of_mini_court())
+                        distance_traveled[pid] += dist_m
+                    
+                    last_positions[pid] = center
+        
+        if i % DIST_UPDATE_FRAMES == 0:
+            distance_display[1] = distance_traveled[1]
+            distance_display[2] = distance_traveled[2]
+        
+        # Check ball in/out status
+        if i in bounce_frames and i in ball_mc:
+            ball_pt = ball_mc[i][1]
+            ball_in_out_status = (
+                "IN" if mini_court.is_point_inside_court(ball_pt) else "OUT")
+        
+        # Update recovery display
+        if i in recovery_times_by_frame:
+            for pid, val in recovery_times_by_frame[i].items():
+                last_recovery_display[pid] = val
+        
+        # Get ball coordinates for display
+        ball_coords = None
+        if i in ball_mc:
+            ball_coords = ball_mc[i][1]
+        
+        # Get player coordinates
+        player_coords = {}
+        if i in player_mc:
+            player_coords = player_mc[i]
+        
+        last_ball_speed = max(df.iloc[i]["player_1_last_shot_speed"],
+                              df.iloc[i]["player_2_last_shot_speed"])
+        
+        # Draw tables
+        table1 = draw_ball_table(frame.shape[0], ball_coords, player_coords,
+                                 last_ball_speed, last_recovery_display,
+                                 ball_in_out_status, distance_display)
+        table2 = draw_speed_table(frame.shape[0], df.iloc[i])
+        
+        final_frames.append(np.hstack((frame, table1, table2)))
+    
+    # Save output video
+    print(f"[STEP 5] Saving annotated video to: {output_video}")
+    save_video(final_frames, output_video)
+    
+    # ============================================================================
+    # EXTRACT BIOMECHANICS DATA
+    # ============================================================================
+    
+    # Get final stats
+    final_stats = df.iloc[-1] if len(df) > 0 else df.iloc[0]
+    
+    # Calculate aggregate metrics
+    p1_shots = int(final_stats["player_1_number_of_shots"])
+    p2_shots = int(final_stats["player_2_number_of_shots"])
+    total_shots = p1_shots + p2_shots
+    
+    p1_avg_speed = float(final_stats["player_1_average_shot_speed"])
+    p2_avg_speed = float(final_stats["player_2_average_shot_speed"])
+    
+    p1_move_speed = float(final_stats["player_1_average_player_speed"])
+    p2_move_speed = float(final_stats["player_2_average_player_speed"])
+    
+    # Calculate recovery time averages
+    p1_recovery_times = [v[1] for v in recovery_times_by_frame.values() if 1 in v and v[1] >= 0]
+    p2_recovery_times = [v[2] for v in recovery_times_by_frame.values() if 2 in v and v[2] >= 0]
+    
+    avg_recovery_p1 = sum(p1_recovery_times) / len(p1_recovery_times) if p1_recovery_times else 0
+    avg_recovery_p2 = sum(p2_recovery_times) / len(p2_recovery_times) if p2_recovery_times else 0
+    
     biomechanics = {
-        "kinetic_chain_efficiency":
-        78,  # Percentage score
-        "core_rotation_speed":
-        145,  # Degrees per second
-        "shoulder_hip_separation":
-        42,  # Degrees
-        "racket_head_speed":
-        85,  # MPH estimate
-        "balance_score":
-        82,  # Stability during strokes
-        "footwork_efficiency":
-        75,  # Movement economy
-        "stroke_consistency":
-        71,  # Shot-to-shot variation
-        "detected_strokes": [{
-            "type": "forehand",
-            "count": 8,
-            "avg_quality": 0.76
-        }, {
-            "type": "backhand",
-            "count": 5,
-            "avg_quality": 0.68
-        }, {
-            "type": "serve",
-            "count": 2,
-            "avg_quality": 0.72
-        }],
-        "key_moments": [{
-            "timestamp": 2.5,
-            "event": "forehand_winner",
-            "quality": 0.92
-        }, {
-            "timestamp": 7.2,
-            "event": "backhand_error",
-            "quality": 0.45
-        }, {
-            "timestamp": 12.1,
-            "event": "serve_ace",
-            "quality": 0.88
-        }]
+        "total_shots": total_shots,
+        "player_1_shots": p1_shots,
+        "player_2_shots": p2_shots,
+        "player_1_avg_shot_speed": round(p1_avg_speed, 1),
+        "player_2_avg_shot_speed": round(p2_avg_speed, 1),
+        "player_1_avg_move_speed": round(p1_move_speed, 1),
+        "player_2_avg_move_speed": round(p2_move_speed, 1),
+        "player_1_distance_traveled": round(distance_traveled[1], 1),
+        "player_2_distance_traveled": round(distance_traveled[2], 1),
+        "player_1_avg_recovery_time": round(avg_recovery_p1, 2),
+        "player_2_avg_recovery_time": round(avg_recovery_p2, 2),
+        "total_frames": total_frames,
+        "duration_seconds": round(total_frames / FPS, 1),
+        "detected_strokes": [
+            {"type": "player_1_shots", "count": p1_shots},
+            {"type": "player_2_shots", "count": p2_shots}
+        ]
+    }
+    
+    return {
+        "biomechanics": biomechanics,
+        "annotated_video_path": output_video,
+        "total_frames": total_frames
     }
 
-    print(
-        f"[STEP 1.4] Biomechanics analyzed: Kinetic chain {biomechanics['kinetic_chain_efficiency']}%"
-    )
-    return biomechanics
-
 
 # ============================================================================
-# STEP 2: ANNOTATED VIDEO GENERATION
+# GEMINI LLM ANALYSIS
 # ============================================================================
-
-
-def generate_annotated_video(video_metadata: Dict[str, Any],
-                             poses: List[Dict[str, Any]],
-                             biomechanics: Dict[str,
-                                                Any], output_path: str) -> str:
-    """
-    Generate an annotated video with skeleton overlay and metrics.
-    
-    In production, this would:
-    - Draw skeleton connections on each frame
-    - Add real-time metrics overlay (angles, speeds)
-    - Highlight key moments with visual cues
-    - Export as MP4 with proper encoding
-    
-    Args:
-        video_metadata: Original video metadata
-        poses: Detected poses for skeleton drawing
-        biomechanics: Calculated metrics for overlay
-        output_path: Where to save the annotated video
-        
-    Returns:
-        Path to the generated annotated video
-    """
-    print(f"[STEP 2.1] Generating annotated video")
-
-    # PSEUDO CODE - Video annotation with OpenCV
-    # ---------------------------------------------------------
-    # import cv2
-    #
-    # cap = cv2.VideoCapture(video_metadata["path"])
-    # fourcc = cv2.VideoWriter_fourcc(*'mp4v')
-    # out = cv2.VideoWriter(
-    #     output_path,
-    #     fourcc,
-    #     video_metadata["fps"],
-    #     (video_metadata["width"], video_metadata["height"])
-    # )
-    #
-    # pose_idx = 0
-    # frame_idx = 0
-    #
-    # while True:
-    #     ret, frame = cap.read()
-    #     if not ret:
-    #         break
-    #
-    #     # Find matching pose for this frame
-    #     if pose_idx < len(poses) and poses[pose_idx]["frame_index"] == frame_idx:
-    #         frame = draw_skeleton(frame, poses[pose_idx]["keypoints"])
-    #         frame = draw_metrics_overlay(frame, biomechanics)
-    #         pose_idx += 1
-    #
-    #     # Highlight key moments
-    #     timestamp = frame_idx / video_metadata["fps"]
-    #     for moment in biomechanics["key_moments"]:
-    #         if abs(moment["timestamp"] - timestamp) < 0.1:
-    #             frame = draw_highlight(frame, moment)
-    #
-    #     out.write(frame)
-    #     frame_idx += 1
-    #
-    # cap.release()
-    # out.release()
-    # ---------------------------------------------------------
-
-    # DUMMY IMPLEMENTATION - Simulate video generation
-    time.sleep(0.5)  # Simulate processing time
-
-    # In production, would return actual annotated video path
-    # For now, return original video path as placeholder
-    annotated_path = output_path if output_path else video_metadata["path"]
-
-    print(f"[STEP 2.1] Annotated video saved to: {annotated_path}")
-    return annotated_path
-
-
-# ============================================================================
-# STEP 3: GEMINI LLM ANALYSIS
-# ============================================================================
-
 
 def call_gemini_llm(biomechanics: Dict[str, Any]) -> Dict[str, Any]:
     """
     Call Gemini LLM to generate professional coaching insights.
     
     Uses Replit AI Integrations for Gemini access (no API key required).
-    Sends biomechanical data and receives structured coaching feedback.
-    
-    Args:
-        biomechanics: Dictionary of analyzed biomechanical metrics
-        
-    Returns:
-        Structured analysis with strengths, fixes, and practice plan
     """
-    print(f"[STEP 3.1] Calling Gemini LLM for coaching analysis")
+    print("[STEP 6] Calling Gemini LLM for coaching analysis...")
+    
+    try:
+        from openai import OpenAI
+        
+        client = OpenAI(
+            api_key=os.environ.get("AI_INTEGRATIONS_OPENAI_API_KEY", ""),
+            base_url=os.environ.get("AI_INTEGRATIONS_OPENAI_BASE_URL", "")
+        )
+        
+        prompt = f"""You are an expert tennis coach analyzing match statistics from a video analysis system.
 
-    # PSEUDO CODE - Actual Gemini API call
-    # ---------------------------------------------------------
-    # import google.generativeai as genai
-    #
-    # # Configure with Replit AI Integrations
-    # genai.configure(
-    #     api_key=GEMINI_API_KEY,
-    #     transport="rest",
-    #     client_options={"api_endpoint": GEMINI_BASE_URL}
-    # )
-    #
-    # model = genai.GenerativeModel(GEMINI_MODEL)
-    #
-    # prompt = f"""
-    # You are an expert tennis coach analyzing a player's biomechanical data.
-    #
-    # BIOMECHANICAL METRICS:
-    # {json.dumps(biomechanics, indent=2)}
-    #
-    # Provide analysis in this exact JSON format:
-    # {{
-    #     "dna": {{
-    #         "technical": <score 0-100>,
-    #         "tactical": <score 0-100>,
-    #         "summary": "<professional analysis paragraph>"
-    #     }},
-    #     "strengths": ["<strength 1>", "<strength 2>", "<strength 3>"],
-    #     "fixes": ["<fix 1>", "<fix 2>"],
-    #     "plan": [
-    #         {{"title": "DRILL 1", "description": "<drill details>"}},
-    #         {{"title": "DRILL 2", "description": "<drill details>"}}
-    #     ]
-    # }}
-    # """
-    #
-    # response = model.generate_content(
-    #     prompt,
-    #     generation_config={
-    #         "temperature": 0.7,
-    #         "max_output_tokens": 2048,
-    #         "response_mime_type": "application/json"
-    #     }
-    # )
-    #
-    # return json.loads(response.text)
-    # ---------------------------------------------------------
+MATCH STATISTICS:
+{json.dumps(biomechanics, indent=2)}
 
-    # DUMMY IMPLEMENTATION - Simulated Gemini response
-    # This would be replaced by actual API call in production
+Based on these statistics, provide coaching feedback in this exact JSON format:
+{{
+    "dna": {{
+        "technical": <score 0-100 based on shot speeds and consistency>,
+        "tactical": <score 0-100 based on movement and recovery>,
+        "summary": "<2-3 sentence professional analysis>"
+    }},
+    "strengths": [
+        "<strength 1 with specific numbers from data>",
+        "<strength 2 with specific numbers from data>",
+        "<strength 3>"
+    ],
+    "fixes": [
+        "<area to improve with specific recommendation>",
+        "<area to improve with specific recommendation>"
+    ],
+    "plan": [
+        {{"title": "DRILL 1: <name>", "description": "<detailed drill description>"}},
+        {{"title": "DRILL 2: <name>", "description": "<detailed drill description>"}}
+    ]
+}}
 
-    # Generate scores based on biomechanics
-    technical_score = int((biomechanics["kinetic_chain_efficiency"] * 0.3) +
-                          (biomechanics["balance_score"] * 0.3) +
-                          (biomechanics["stroke_consistency"] * 0.4))
+Respond ONLY with valid JSON, no additional text."""
 
-    tactical_score = int((biomechanics["footwork_efficiency"] * 0.5) +
-                         (biomechanics["balance_score"] * 0.5))
-
-    analysis = {
+        response = client.chat.completions.create(
+            model=GEMINI_MODEL,
+            messages=[
+                {"role": "system", "content": "You are an expert tennis coach. Respond only with valid JSON."},
+                {"role": "user", "content": prompt}
+            ],
+            temperature=0.7,
+            max_tokens=2048
+        )
+        
+        response_text = response.choices[0].message.content
+        
+        # Parse JSON from response
+        if response_text:
+            # Clean up response if needed
+            response_text = response_text.strip()
+            if response_text.startswith("```json"):
+                response_text = response_text[7:]
+            if response_text.startswith("```"):
+                response_text = response_text[3:]
+            if response_text.endswith("```"):
+                response_text = response_text[:-3]
+            
+            analysis = json.loads(response_text.strip())
+            print(f"[STEP 6] Gemini analysis complete")
+            return analysis
+            
+    except Exception as e:
+        print(f"[WARNING] Gemini API call failed: {e}")
+        print("[INFO] Using fallback analysis")
+    
+    # Fallback analysis if Gemini fails
+    p1_speed = biomechanics.get("player_1_avg_shot_speed", 0)
+    p2_speed = biomechanics.get("player_2_avg_shot_speed", 0)
+    avg_speed = (p1_speed + p2_speed) / 2 if (p1_speed + p2_speed) > 0 else 50
+    
+    technical_score = min(100, int(avg_speed * 1.5))
+    tactical_score = min(100, int(70 + (biomechanics.get("total_shots", 0) * 2)))
+    
+    return {
         "dna": {
-            "technical":
-            technical_score,
-            "tactical":
-            tactical_score,
-            "summary":
-            (f"The player demonstrates solid biomechanical fundamentals with "
-             f"{biomechanics['kinetic_chain_efficiency']}% kinetic chain efficiency "
-             f"and {biomechanics['core_rotation_speed']}°/s core rotation speed. "
-             f"The shoulder-hip separation of {biomechanics['shoulder_hip_separation']}° "
-             f"indicates good power generation potential. Focus areas include "
-             f"improving stroke consistency ({biomechanics['stroke_consistency']}%) "
-             f"and footwork efficiency ({biomechanics['footwork_efficiency']}%)."
-             )
+            "technical": technical_score,
+            "tactical": tactical_score,
+            "summary": (
+                f"Analysis of {biomechanics.get('total_shots', 0)} total shots over "
+                f"{biomechanics.get('duration_seconds', 0)} seconds. "
+                f"Player 1 averaged {p1_speed} km/h shot speed, "
+                f"Player 2 averaged {p2_speed} km/h."
+            )
         },
         "strengths": [
-            f"Test Results: Kinetic chain efficiency at {biomechanics['kinetic_chain_efficiency']}%, "
-            f"core rotation speed {biomechanics['core_rotation_speed']}°/s",
-            f"Strong balance during strokes with {biomechanics['balance_score']}% stability score",
-            f"Effective racket head speed averaging {biomechanics['racket_head_speed']} MPH"
+            f"Player 1 shot speed averaging {p1_speed} km/h",
+            f"Player 2 movement covering {biomechanics.get('player_2_distance_traveled', 0)}m",
+            f"Consistent rally with {biomechanics.get('total_shots', 0)} total shots"
         ],
         "fixes": [
-            f"Improve footwork efficiency (currently {biomechanics['footwork_efficiency']}%) "
-            f"to enhance court coverage and shot preparation time",
-            f"Work on stroke consistency (currently {biomechanics['stroke_consistency']}%) "
-            f"to reduce unforced errors during rallies"
+            f"Work on recovery positioning (current avg: {biomechanics.get('player_1_avg_recovery_time', 0)}s)",
+            "Focus on footwork drills to improve court coverage"
         ],
-        "plan": [{
-            "title":
-            "DRILL 1: Kinetic Chain Activation",
-            "description":
-            ("Shadow swing practice focusing on sequential activation: "
-             "legs → hips → core → shoulders → arm. Perform 3 sets of 10 swings "
-             "with a resistance band for enhanced muscle memory.")
-        }, {
-            "title":
-            "DRILL 2: Footwork Ladder",
-            "description":
-            ("Agility ladder exercises combined with split-step timing. "
-             "Practice recovery steps after each shot simulation. "
-             "10 minutes daily for 2 weeks.")
-        }]
+        "plan": [
+            {
+                "title": "DRILL 1: Recovery Sprint",
+                "description": "Practice split-step timing and recovery to baseline center after each shot. 10 reps x 3 sets."
+            },
+            {
+                "title": "DRILL 2: Shot Speed Progression",
+                "description": "Gradually increase racket head speed while maintaining consistency. Start at 70% power, build to 100%."
+            }
+        ]
     }
-
-    print(
-        f"[STEP 3.1] Gemini analysis complete: Technical {technical_score}%, Tactical {tactical_score}%"
-    )
-    return analysis
-
-
-# ============================================================================
-# STEP 4: OUTPUT RESULTS FOR UI
-# ============================================================================
-
-
-def format_output(video_metadata: Dict[str, Any], biomechanics: Dict[str, Any],
-                  gemini_analysis: Dict[str, Any],
-                  annotated_video_path: str) -> Dict[str, Any]:
-    """
-    Format all results into structured JSON for the UI.
-    
-    Args:
-        video_metadata: Original video information
-        biomechanics: Raw biomechanical measurements
-        gemini_analysis: LLM-generated coaching insights
-        annotated_video_path: Path to annotated video
-        
-    Returns:
-        Complete analysis result for display in UI
-    """
-    print(f"[STEP 4.1] Formatting output for UI")
-
-    output = {
-        "status": "success",
-        "video": {
-            "original": video_metadata["path"],
-            "annotated": annotated_video_path,
-            "duration": video_metadata["duration_seconds"],
-            "resolution":
-            f"{video_metadata['width']}x{video_metadata['height']}"
-        },
-        "biomechanics": {
-            "kinetic_chain_efficiency":
-            biomechanics["kinetic_chain_efficiency"],
-            "core_rotation_speed": biomechanics["core_rotation_speed"],
-            "balance_score": biomechanics["balance_score"],
-            "footwork_efficiency": biomechanics["footwork_efficiency"],
-            "racket_head_speed": biomechanics["racket_head_speed"],
-            "stroke_consistency": biomechanics["stroke_consistency"],
-            "detected_strokes": biomechanics["detected_strokes"],
-            "key_moments": biomechanics["key_moments"]
-        },
-        "analysis": gemini_analysis
-    }
-
-    return output
 
 
 # ============================================================================
 # MAIN EXECUTION
 # ============================================================================
 
-
 def main():
-    """
-    Main entry point for the inference pipeline.
+    """Main entry point for the inference pipeline."""
     
-    Orchestrates the complete video analysis workflow:
-    1. Load and validate video
-    2. Extract frames and detect poses
-    3. Analyze biomechanics
-    4. Generate annotated video
-    5. Call Gemini LLM for insights
-    6. Output structured results
-    """
-    # Parse command line arguments
     if len(sys.argv) < 2:
-        print(
-            json.dumps({
-                "status":
-                "error",
-                "message":
-                "No input file provided",
-                "usage":
-                "python3 inference.py <video_path> [output_dir]"
-            }))
+        print(json.dumps({
+            "status": "error",
+            "message": "No input file provided",
+            "usage": "python3 inference.py <video_path> [output_dir]"
+        }))
         sys.exit(1)
-
+    
     video_path = sys.argv[1]
     output_dir = sys.argv[2] if len(sys.argv) > 2 else "/tmp"
-
+    
     print("=" * 60)
     print("RallyCoach AI - Video Inference Pipeline")
     print("=" * 60)
     print(f"Input: {video_path}")
     print(f"Output directory: {output_dir}")
     print("=" * 60)
-
+    
     try:
-        # STEP 1: Video Processing
-        print("\n[STEP 1] VIDEO PROCESSING")
-        print("-" * 40)
-        video_metadata = load_video(video_path)
-        frames = extract_frames(video_metadata)
-        poses = detect_poses(frames)
-        biomechanics = analyze_biomechanics(poses)
-
-        # STEP 2: Generate Annotated Video
-        print("\n[STEP 2] ANNOTATED VIDEO GENERATION")
-        print("-" * 40)
+        # Generate output path
         annotated_path = os.path.join(output_dir, "annotated_output.mp4")
-        annotated_video = generate_annotated_video(video_metadata, poses,
-                                                   biomechanics,
-                                                   annotated_path)
-
-        # STEP 3: Gemini LLM Analysis
-        print("\n[STEP 3] GEMINI LLM ANALYSIS")
-        print("-" * 40)
+        
+        # Run video analysis
+        analysis_results = analyze_video(video_path, annotated_path)
+        biomechanics = analysis_results["biomechanics"]
+        
+        # Get LLM coaching insights
         gemini_analysis = call_gemini_llm(biomechanics)
-
-        # STEP 4: Format and Output Results
-        print("\n[STEP 4] OUTPUT RESULTS")
-        print("-" * 40)
-        results = format_output(video_metadata, biomechanics, gemini_analysis,
-                                annotated_video)
-
-        # Print the final JSON output for the backend to parse
+        
+        # Format final output
+        output = {
+            "status": "success",
+            "video": {
+                "original": video_path,
+                "annotated": annotated_path,
+                "duration": biomechanics["duration_seconds"],
+                "total_frames": biomechanics["total_frames"]
+            },
+            "biomechanics": biomechanics,
+            "analysis": gemini_analysis
+        }
+        
+        # Print result between markers for backend parsing
         print("\n" + "=" * 60)
         print("INFERENCE_RESULT_JSON_START")
-        print(json.dumps(results, indent=2))
+        print(json.dumps(output, indent=2))
         print("INFERENCE_RESULT_JSON_END")
         print("=" * 60)
-
-        # Signal successful completion
-        print("\nsuccess.done")
-
+        
+        print("\n[COMPLETE] Video analysis finished successfully!")
+        
+    except FileNotFoundError as e:
+        error_output = {
+            "status": "error",
+            "message": str(e),
+            "type": "file_not_found"
+        }
+        print("INFERENCE_RESULT_JSON_START")
+        print(json.dumps(error_output, indent=2))
+        print("INFERENCE_RESULT_JSON_END")
+        sys.exit(1)
+        
     except Exception as e:
         error_output = {
             "status": "error",
             "message": str(e),
-            "video_path": video_path
+            "type": "processing_error"
         }
-        print(json.dumps(error_output))
-        print("\nerror.failed")
+        print("INFERENCE_RESULT_JSON_START")
+        print(json.dumps(error_output, indent=2))
+        print("INFERENCE_RESULT_JSON_END")
         sys.exit(1)
 
 
