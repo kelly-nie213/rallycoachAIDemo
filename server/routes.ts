@@ -3,7 +3,10 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { api } from "@shared/routes";
 import { z } from "zod";
-import { registerObjectStorageRoutes } from "./replit_integrations/object_storage";
+import { registerObjectStorageRoutes, ObjectStorageService } from "./replit_integrations/object_storage";
+import * as fs from "fs";
+import * as path from "path";
+import { pipeline } from "stream/promises";
 
 export async function registerRoutes(
   httpServer: Server,
@@ -71,14 +74,28 @@ export async function registerRoutes(
           const { promisify } = await import("util");
           const execAsync = promisify(exec);
 
-          // Run the inference pipeline script
-          // The script handles: video processing, pose detection, biomechanics, 
-          // annotated video generation, and Gemini LLM analysis
+          // Download video from object storage to temp file
           console.log(`[Inference] Starting pipeline for: ${video.originalUrl}`);
           
+          const objectStorage = new ObjectStorageService();
+          const objectFile = await objectStorage.getObjectEntityFile(video.originalUrl);
+          
+          // Create temp file path
+          const tempVideoPath = path.join("/tmp", `video_${id}_${Date.now()}.mp4`);
+          
+          console.log(`[Inference] Downloading video to: ${tempVideoPath}`);
+          
+          // Download the file to temp location
+          const writeStream = fs.createWriteStream(tempVideoPath);
+          const readStream = objectFile.createReadStream();
+          await pipeline(readStream, writeStream);
+          
+          console.log(`[Inference] Download complete, starting analysis...`);
+
+          // Run the inference pipeline script with the local file path
           const { stdout, stderr } = await execAsync(
-            `python3 inference.py "${video.originalUrl}" "/tmp"`,
-            { maxBuffer: 10 * 1024 * 1024 } // 10MB buffer for large output
+            `python3 inference.py "${tempVideoPath}" "/tmp"`,
+            { maxBuffer: 10 * 1024 * 1024, timeout: 600000 } // 10MB buffer, 10min timeout
           );
           
           if (stderr) {
@@ -128,6 +145,14 @@ export async function registerRoutes(
           });
           
           console.log(`[Inference] Completed for video ${id}`);
+          
+          // Clean up temp file
+          try {
+            fs.unlinkSync(tempVideoPath);
+            console.log(`[Inference] Cleaned up temp file: ${tempVideoPath}`);
+          } catch (cleanupErr) {
+            console.warn(`[Inference] Failed to clean up temp file: ${cleanupErr}`);
+          }
         } catch (err) {
           console.error("Background processing failed:", err);
           await storage.updateVideo(id, { status: "failed" });
