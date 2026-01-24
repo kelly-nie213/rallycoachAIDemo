@@ -1,4 +1,4 @@
-import cv2
+import cv2  # type: ignore
 import numpy as np
 import sys
 import os
@@ -301,6 +301,18 @@ class MiniCourt():
         1: (center_x, p1_y),
         2: (center_x, p2_y)
     }
+
+   def is_point_inside_court(self, point):
+    """
+    Check if a point (in mini-court coordinates) is inside the court boundaries.
+    Args:
+        point: tuple (x, y) in mini-court pixel space
+    Returns:
+        bool: True if point is inside court, False otherwise
+    """
+    x, y = point
+    return (self.court_start_x <= x <= self.court_end_x and 
+            self.court_start_y <= y <= self.court_end_y)
    
    def draw_circle_on_mini_court(
         self,

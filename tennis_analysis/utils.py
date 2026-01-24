@@ -1,4 +1,4 @@
-import cv2
+import cv2  # type: ignore
 import numpy as np
 import pandas as pd
 from copy import deepcopy
@@ -208,8 +208,8 @@ def main():
 
         recovery_times_by_frame[start] = {opponent: recovery_time}
 
-    player_ball_touch_time = {1: None, 2: None}
-    player_circle_touch_time = {1: None, 2: None}
+    player_ball_touch_time: dict[int, float | None] = {1: None, 2: None}
+    player_circle_touch_time: dict[int, float | None] = {1: None, 2: None}
 
     stats = [{
         "frame_num": 0,
@@ -293,7 +293,7 @@ def main():
     # ===============================
     distance_traveled = {1: 0.0, 2: 0.0}
     distance_display = {1: 0.0, 2: 0.0}
-    last_positions = {1: None, 2: None}
+    last_positions: dict[int, tuple[int, int] | None] = {1: None, 2: None}
     DIST_UPDATE_FRAMES = int(2 * FPS)
 
     final_frames = []
