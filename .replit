@@ -4,7 +4,7 @@ hidden = [".config", ".git", "generated-icon.png", "node_modules", "dist"]
 
 [nix]
 channel = "stable-24_05"
-packages = ["glibcLocales", "libGL", "libGLU", "python311Packages.pandas", "python311Packages.opencv4", "python311Packages.numpy"]
+packages = ["glibcLocales", "libGL", "libGLU", "python311Packages.pandas", "python311Packages.opencv4", "python311Packages.numpy", "gcc", "libstdcxx5"]
 
 [[ports]]
 localPort = 5000
@@ -41,3 +41,8 @@ waitForPort = 5000
 
 [agent]
 integrations = ["javascript_openai_ai_integrations:2.0.0", "javascript_object_storage:2.0.0"]
+
+[userenv]
+
+[userenv.shared]
+PYTHONPATH = "/nix/store/a4rihhw5j33rswdlhl9fll9jx5gk8bgi-python3.11-pandas-2.2.1/lib/python3.11/site-packages:/nix/store/ylvsb39l0wq5q6xdphrq35an6dxqhjw9-python3.11-numpy-1.26.4/lib/python3.11/site-packages:/nix/store/ixfk0hp2ym52s1mj72206yg4m0hhmic4-opencv-4.9.0/lib/python3.11/site-packages:/nix/store/hdk64kfd3zb4yjhqik8dcdmllbhcpfgd-python3.11-python-dateutil-2.9.0.post0/lib/python3.11/site-packages:/nix/store/3wjpbcld0kqzsv317irlaypsgx4700zx-python3.11-six-1.16.0/lib/python3.11/site-packages:/nix/store/zamdpg9sf8rv2hmbld9vz27g8iaq2v2k-python3.11-pytz-2024.1/lib/python3.11/site-packages:/nix/store/lh35wp71s5hxg22ip9dafbbnpbk5xph3-python3.11-tzdata-2024.1/lib/python3.11/site-packages"

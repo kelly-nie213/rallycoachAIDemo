@@ -19,7 +19,7 @@ OUTPUT_VIDEO = "/Users/kellynie/Desktop/sciencetennis_project/tennis_analysis/ou
 BALL_MODEL = "/Users/kellynie/Desktop/sciencetennis_project/tennis_analysis/models/last.pt"
 COURT_MODEL = "/Users/kellynie/Desktop/sciencetennis_project/tennis_analysis/models/keypoints_model.pth"
 
-FPS = 24
+FPS = 24x
 TABLE_WIDTH = 320
 
 
