@@ -48,7 +48,10 @@ class PlayerTracker:
                 player_detections = pickle.load(f)
             return player_detections
 
-        for frame in frames:
+        total_frames = len(frames)
+        for i, frame in enumerate(frames):
+            if i % 20 == 0:  # Log progress every 20 frames
+                print(f"  [PlayerTracker] Processing frame {i+1}/{total_frames}...")
             player_dict = self.detect_frame(frame)
             player_detections.append(player_dict)
         

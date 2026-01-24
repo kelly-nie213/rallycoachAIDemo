@@ -61,9 +61,12 @@ class BallTracker:
                 ball_detections = pickle.load(f)
             return ball_detections
 
-        for frame in frames:
-            player_dict = self.detect_frame(frame)
-            ball_detections.append(player_dict)
+        total_frames = len(frames)
+        for i, frame in enumerate(frames):
+            if i % 20 == 0:  # Log progress every 20 frames
+                print(f"  [BallTracker] Processing frame {i+1}/{total_frames}...")
+            ball_dict = self.detect_frame(frame)
+            ball_detections.append(ball_dict)
         
         if stub_path is not None:
             with open(stub_path, 'wb') as f:

@@ -2,6 +2,7 @@ import cv2
 import numpy as np
 import pandas as pd
 from copy import deepcopy
+import gc
 
 from utils import (read_video, save_video, measure_distance,
                    convert_pixel_distance_to_meters)
@@ -181,16 +182,27 @@ def main(input_video: str, output_video: str,
     
     video_frames = read_video(input_video)
     print(f"[TennisAnalysis] Loaded {len(video_frames)} frames")
+    print(f"[TennisAnalysis] Memory optimization: using yolov8n (nano) model")
 
-    player_tracker = PlayerTracker(model_path="yolov8x")
+    # Use yolov8n (nano) instead of yolov8x for much lower memory usage
+    player_tracker = PlayerTracker(model_path="yolov8n")
     ball_tracker = BallTracker(model_path=ball_model)
 
     print("[TennisAnalysis] Running player detection...")
     player_dets = player_tracker.detect_frames(video_frames)
+    print(f"[TennisAnalysis] Player detection complete: {len(player_dets)} frames processed")
+    
+    # Free memory before next heavy operation
+    gc.collect()
+    
     print("[TennisAnalysis] Running ball detection...")
     ball_dets = ball_tracker.detect_frames(video_frames)
+    print(f"[TennisAnalysis] Ball detection complete: {len(ball_dets)} frames processed")
     ball_dets = ball_tracker.interpolate_ball_positions(ball_dets)
 
+    # Free memory again
+    gc.collect()
+    
     print("[TennisAnalysis] Detecting court lines...")
     court_detector = CourtLineDetector(court_model)
     court_kps = court_detector.predict(video_frames[0])
