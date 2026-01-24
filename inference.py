@@ -729,10 +729,16 @@ def main():
         print("\nsuccess.done")
 
     except Exception as e:
+        import traceback
+        error_traceback = traceback.format_exc()
+        print(f"\n[ERROR] Exception occurred: {str(e)}")
+        print(f"[ERROR] Full traceback:\n{error_traceback}")
+        
         error_output = {
             "status": "error",
             "message": str(e),
-            "video_path": video_path
+            "video_path": video_path,
+            "traceback": error_traceback
         }
         print(json.dumps(error_output))
         print("\nerror.failed")
