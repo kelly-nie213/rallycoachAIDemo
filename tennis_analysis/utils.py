@@ -180,42 +180,60 @@ def main(input_video: str, output_video: str,
     print(f"[TennisAnalysis] Ball model: {ball_model}")
     print(f"[TennisAnalysis] Court model: {court_model}")
     
+    print("[TennisAnalysis] === STEP 1: Loading Video ===")
     video_frames = read_video(input_video)
     print(f"[TennisAnalysis] Loaded {len(video_frames)} frames")
     print(f"[TennisAnalysis] Memory optimization: using yolov8n (nano) model")
 
+    print("[TennisAnalysis] === STEP 2: Initializing Trackers ===")
     # Use yolov8n (nano) instead of yolov8x for much lower memory usage
     player_tracker = PlayerTracker(model_path="yolov8n")
+    print("[TennisAnalysis] PlayerTracker initialized")
     ball_tracker = BallTracker(model_path=ball_model)
+    print("[TennisAnalysis] BallTracker initialized")
 
-    print("[TennisAnalysis] Running player detection...")
+    print("[TennisAnalysis] === STEP 3: Player Detection ===")
     player_dets = player_tracker.detect_frames(video_frames)
     print(f"[TennisAnalysis] Player detection complete: {len(player_dets)} frames processed")
     
     # Free memory before next heavy operation
     gc.collect()
     
-    print("[TennisAnalysis] Running ball detection...")
+    print("[TennisAnalysis] === STEP 4: Ball Detection ===")
     ball_dets = ball_tracker.detect_frames(video_frames)
     print(f"[TennisAnalysis] Ball detection complete: {len(ball_dets)} frames processed")
+    print("[TennisAnalysis] Interpolating ball positions...")
     ball_dets = ball_tracker.interpolate_ball_positions(ball_dets)
+    print("[TennisAnalysis] Ball interpolation complete")
 
     # Free memory again
     gc.collect()
     
-    print("[TennisAnalysis] Detecting court lines...")
+    print("[TennisAnalysis] === STEP 5: Court Line Detection ===")
     court_detector = CourtLineDetector(court_model)
+    print("[TennisAnalysis] CourtLineDetector initialized")
     court_kps = court_detector.predict(video_frames[0])
+    print(f"[TennisAnalysis] Court keypoints detected: {len(court_kps) if court_kps else 0}")
+    
+    print("[TennisAnalysis] === STEP 6: Filtering Players ===")
     player_dets = player_tracker.choose_and_filter_players(
         court_kps, player_dets)
+    print(f"[TennisAnalysis] Filtered to {len(player_dets[0]) if player_dets else 0} players")
 
+    print("[TennisAnalysis] === STEP 7: Mini Court Setup ===")
     mini_court = MiniCourt(video_frames[0])
+    print("[TennisAnalysis] MiniCourt initialized")
 
+    print("[TennisAnalysis] === STEP 8: Converting to Mini Court Coordinates ===")
     player_mc, ball_mc = mini_court.convert_bounding_boxes_to_mini_court_coordinates(
         player_dets, ball_dets, court_kps)
+    print(f"[TennisAnalysis] Mini court coordinates computed: {len(player_mc)} player frames, {len(ball_mc)} ball frames")
 
+    print("[TennisAnalysis] === STEP 9: Detecting Ball Shots ===")
     ball_shot_frames = ball_tracker.get_ball_shot_frames(ball_dets)
+    print(f"[TennisAnalysis] Detected {len(ball_shot_frames)} ball shot frames")
     baseline_centers = mini_court.get_baseline_centers()
+    print("[TennisAnalysis] Baseline centers calculated")
 
     ball_in_out_status = "IN"
     bounce_frames = set(ball_shot_frames[1:])
@@ -303,6 +321,7 @@ def main(input_video: str, output_video: str,
         cur[f"player_{opponent}_last_player_speed"] = opp_speed
         stats.append(cur)
 
+    print("[TennisAnalysis] === STEP 10: Computing Statistics ===")
     df = pd.DataFrame(stats)
     frames_df = pd.DataFrame({"frame_num": range(len(video_frames))})
     df = pd.merge(frames_df, df, on="frame_num", how="left").ffill().fillna(0)
@@ -317,24 +336,34 @@ def main(input_video: str, output_video: str,
     df["player_2_average_player_speed"] = df[
         "player_2_total_player_speed"] / df[
             "player_1_number_of_shots"].replace(0, 1)
+    print(f"[TennisAnalysis] Statistics computed: {len(df)} rows")
 
+    print("[TennisAnalysis] === STEP 11: Drawing Annotations ===")
+    print("[TennisAnalysis] Drawing player bounding boxes...")
     frames = player_tracker.draw_bboxes(video_frames, player_dets)
+    print("[TennisAnalysis] Drawing ball bounding boxes...")
     frames = ball_tracker.draw_bboxes(frames, ball_dets)
+    print("[TennisAnalysis] Drawing court keypoints...")
     frames = court_detector.draw_keypoints_on_video(frames, court_kps)
+    print("[TennisAnalysis] Drawing mini court...")
     frames = mini_court.draw_mini_court(frames)
 
     frames = mini_court.draw_circle_on_mini_court(frames, baseline_centers,
                                                   int(RECOVERY_RADIUS_PX),
                                                   (255, 0, 0), 2)
 
+    print("[TennisAnalysis] Drawing player points on mini court...")
     frames = mini_court.draw_points_on_mini_court(frames, player_mc)
+    print("[TennisAnalysis] Drawing ball points on mini court...")
     frames = mini_court.draw_points_on_mini_court(frames,
                                                   ball_mc,
                                                   color=(0, 255, 255))
+    print("[TennisAnalysis] All annotations drawn")
 
     # ===============================
     # DISTANCE TRAVELED (FIXED)
     # ===============================
+    print("[TennisAnalysis] === STEP 12: Building Final Frames ===")
     distance_traveled = {1: 0.0, 2: 0.0}
     distance_display = {1: 0.0, 2: 0.0}
     last_positions: dict[int, tuple[int, int] | None] = {1: None, 2: None}
@@ -342,8 +371,11 @@ def main(input_video: str, output_video: str,
 
     final_frames = []
     last_recovery_display = {1: 0, 2: 0}
+    total_frames_count = len(frames)
 
     for i, frame in enumerate(frames):
+        if i % 50 == 0:
+            print(f"[TennisAnalysis] Processing final frame {i}/{total_frames_count}...")
 
         cv2.putText(frame, f"Frame: {i}", (10, 30), cv2.FONT_HERSHEY_SIMPLEX,
                     1, (0, 255, 0), 2)
@@ -410,9 +442,12 @@ def main(input_video: str, output_video: str,
 
         final_frames.append(np.hstack((frame, table1, table2)))
 
+    print(f"[TennisAnalysis] === STEP 13: Saving Video ===")
     print(f"[TennisAnalysis] Saving annotated video to: {output_video}")
+    print(f"[TennisAnalysis] Total frames to save: {len(final_frames)}")
     save_video(final_frames, output_video)
     print(f"[TennisAnalysis] Video saved successfully")
+    print(f"[TennisAnalysis] === PIPELINE COMPLETE ===")
     
     # Compile analysis results to return
     total_frames = len(video_frames)
