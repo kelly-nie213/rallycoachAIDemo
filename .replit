@@ -4,7 +4,7 @@ hidden = [".config", ".git", "generated-icon.png", "node_modules", "dist"]
 
 [nix]
 channel = "stable-24_05"
-packages = ["glibcLocales", "libGL", "libGLU", "python311Packages.pandas", "python311Packages.opencv4", "python311Packages.numpy", "gcc", "libstdcxx5"]
+packages = ["gcc", "glibcLocales", "libGL", "libGLU", "libjpeg_turbo", "libpng", "libstdcxx5", "python311Packages.numpy", "python311Packages.opencv4", "python311Packages.pandas", "which"]
 
 [[ports]]
 localPort = 5000
