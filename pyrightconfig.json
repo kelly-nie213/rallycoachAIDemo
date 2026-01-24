@@ -1,0 +1,17 @@
+{
+  "include": ["."],
+  "exclude": ["node_modules", ".git"],
+  "pythonVersion": "3.11",
+  "pythonPlatform": "Linux",
+  "extraPaths": [
+    "/nix/store/a4rihhw5j33rswdlhl9fll9jx5gk8bgi-python3.11-pandas-2.2.1/lib/python3.11/site-packages",
+    "/nix/store/ylvsb39l0wq5q6xdphrq35an6dxqhjw9-python3.11-numpy-1.26.4/lib/python3.11/site-packages",
+    "/nix/store/ixfk0hp2ym52s1mj72206yg4m0hhmic4-opencv-4.9.0/lib/python3.11/site-packages",
+    "/nix/store/hdk64kfd3zb4yjhqik8dcdmllbhcpfgd-python3.11-python-dateutil-2.9.0.post0/lib/python3.11/site-packages",
+    "/nix/store/3wjpbcld0kqzsv317irlaypsgx4700zx-python3.11-six-1.16.0/lib/python3.11/site-packages",
+    "/nix/store/zamdpg9sf8rv2hmbld9vz27g8iaq2v2k-python3.11-pytz-2024.1/lib/python3.11/site-packages",
+    "/nix/store/lh35wp71s5hxg22ip9dafbbnpbk5xph3-python3.11-tzdata-2024.1/lib/python3.11/site-packages"
+  ],
+  "reportMissingImports": false,
+  "reportMissingModuleSource": false
+}
