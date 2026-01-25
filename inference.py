@@ -24,27 +24,30 @@ from typing import Dict, List, Any, Optional
 
 # Set up file logging to capture complete output (Node.js truncates stdout)
 LOG_FILE = '/tmp/inference.log'
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s [%(levelname)s] %(message)s',
-    handlers=[
-        logging.FileHandler(LOG_FILE, mode='w'),
-        logging.StreamHandler(sys.stdout)
-    ]
-)
+logging.basicConfig(level=logging.INFO,
+                    format='%(asctime)s [%(levelname)s] %(message)s',
+                    handlers=[
+                        logging.FileHandler(LOG_FILE, mode='w'),
+                        logging.StreamHandler(sys.stdout)
+                    ])
 logger = logging.getLogger(__name__)
+
 
 # Also redirect print statements to the log file
 class TeeOutput:
+
     def __init__(self, *files):
         self.files = files
+
     def write(self, text):
         for f in self.files:
             f.write(text)
             f.flush()
+
     def flush(self):
         for f in self.files:
             f.flush()
+
 
 log_file_handle = open(LOG_FILE, 'a')
 sys.stdout = TeeOutput(sys.__stdout__, log_file_handle)
@@ -74,62 +77,61 @@ GEMINI_API_KEY = os.environ.get("AI_INTEGRATIONS_GEMINI_API_KEY", "")
 # STEP 1: VIDEO PROCESSING
 # ============================================================================
 
+# def load_video(video_path: str, output_dir: str = "/tmp") -> Dict[str, Any]:
+#     """
+#     Load and process the input video file using the tennis analysis pipeline.
 
-def load_video(video_path: str, output_dir: str = "/tmp") -> Dict[str, Any]:
-    """
-    Load and process the input video file using the tennis analysis pipeline.
+#     This calls the main() function from tennis_analysis/utils.py to:
+#     - Run player/ball detection
+#     - Generate annotated video with tracking overlays
+#     - Save the annotated video to output_dir
 
-    This calls the main() function from tennis_analysis/utils.py to:
-    - Run player/ball detection
-    - Generate annotated video with tracking overlays
-    - Save the annotated video to output_dir
+#     Args:
+#         video_path: Path to the uploaded video file
+#         output_dir: Directory to save the annotated output video
 
-    Args:
-        video_path: Path to the uploaded video file
-        output_dir: Directory to save the annotated output video
+#     Returns:
+#         Dictionary containing video metadata and path to annotated video
+#     """
+#     import cv2
+#     from utils import main as run_tennis_analysis
 
-    Returns:
-        Dictionary containing video metadata and path to annotated video
-    """
-    import cv2
-    from utils import main as run_tennis_analysis
-    
-    print(f"[STEP 1.1] Loading video: {video_path}")
-    
-    # Get video metadata using OpenCV
-    cap = cv2.VideoCapture(video_path)
-    if not cap.isOpened():
-        raise ValueError(f"Cannot open video: {video_path}")
-    
-    metadata = {
-        "width": int(cap.get(cv2.CAP_PROP_FRAME_WIDTH)),
-        "height": int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT)),
-        "fps": cap.get(cv2.CAP_PROP_FPS),
-        "frame_count": int(cap.get(cv2.CAP_PROP_FRAME_COUNT)),
-        "path": video_path
-    }
-    metadata["duration_seconds"] = metadata["frame_count"] / metadata["fps"] if metadata["fps"] > 0 else 0
-    cap.release()
-    
-    print(f"[STEP 1.1] Video loaded: {metadata['duration_seconds']:.1f}s @ {metadata['fps']}fps")
-    
-    # Set output path for annotated video
-    output_video_path = os.path.join(output_dir, "annotated_output.mp4")
-    
-    print(f"[STEP 1.2] Running tennis analysis pipeline...")
-    print(f"[STEP 1.2] Input: {video_path}")
-    print(f"[STEP 1.2] Output: {output_video_path}")
-    
-    # Call the main tennis analysis function
-    annotated_path = run_tennis_analysis(
-        input_video=video_path,
-        output_video=output_video_path
-    )
-    
-    metadata["annotated_video_path"] = annotated_path
-    print(f"[STEP 1.3] Annotated video saved to: {annotated_path}")
-    
-    return metadata
+#     print(f"[STEP 1.1] Loading video: {video_path}")
+
+#     # Get video metadata using OpenCV
+#     cap = cv2.VideoCapture(video_path)
+#     if not cap.isOpened():
+#         raise ValueError(f"Cannot open video: {video_path}")
+
+#     metadata = {
+#         "width": int(cap.get(cv2.CAP_PROP_FRAME_WIDTH)),
+#         "height": int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT)),
+#         "fps": cap.get(cv2.CAP_PROP_FPS),
+#         "frame_count": int(cap.get(cv2.CAP_PROP_FRAME_COUNT)),
+#         "path": video_path
+#     }
+#     metadata["duration_seconds"] = metadata["frame_count"] / metadata["fps"] if metadata["fps"] > 0 else 0
+#     cap.release()
+
+#     print(f"[STEP 1.1] Video loaded: {metadata['duration_seconds']:.1f}s @ {metadata['fps']}fps")
+
+#     # Set output path for annotated video
+#     output_video_path = os.path.join(output_dir, "annotated_output.mp4")
+
+#     print(f"[STEP 1.2] Running tennis analysis pipeline...")
+#     print(f"[STEP 1.2] Input: {video_path}")
+#     print(f"[STEP 1.2] Output: {output_video_path}")
+
+#     # Call the main tennis analysis function
+#     annotated_path = run_tennis_analysis(
+#         input_video=video_path,
+#         output_video=output_video_path
+#     )
+
+#     metadata["annotated_video_path"] = annotated_path
+#     print(f"[STEP 1.3] Annotated video saved to: {annotated_path}")
+
+#     return metadata
 
 
 def extract_frames(video_metadata: Dict[str, Any]) -> List[Dict[str, Any]]:
@@ -643,13 +645,18 @@ def main():
     Calls utils.main() from tennis_analysis to run the full pipeline,
     then passes results to Gemini LLM for coaching insights.
     """
+    print('start the main function')
     # Parse command line arguments
     if len(sys.argv) < 2:
-        print(json.dumps({
-            "status": "error",
-            "message": "No input file provided",
-            "usage": "python3 inference.py <video_path> [output_dir]"
-        }))
+        print(
+            json.dumps({
+                "status":
+                "error",
+                "message":
+                "No input file provided",
+                "usage":
+                "python3 inference.py <video_path> [output_dir]"
+            }))
         sys.exit(1)
 
     video_path = sys.argv[1]
@@ -665,20 +672,22 @@ def main():
     try:
         # Import and run the tennis analysis main function
         import importlib.util
-        utils_path = os.path.join(os.path.dirname(__file__), 'tennis_analysis', 'utils.py')
-        spec = importlib.util.spec_from_file_location("tennis_utils", utils_path)
+        utils_path = os.path.join(os.path.dirname(__file__), 'tennis_analysis',
+                                  'utils.py')
+        spec = importlib.util.spec_from_file_location("tennis_utils",
+                                                      utils_path)
         if spec is None or spec.loader is None:
-            raise ImportError(f"Could not load tennis_analysis utils from {utils_path}")
+            raise ImportError(
+                f"Could not load tennis_analysis utils from {utils_path}")
         tennis_utils = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(tennis_utils)
-        
+
         # Run the full tennis analysis pipeline
         annotated_path = os.path.join(output_dir, "annotated_output.mp4")
-        analysis_results = tennis_utils.main(
-            input_video=video_path,
-            output_video=annotated_path
-        )
-        
+        analysis_results = tennis_utils.main(input_video=video_path,
+                                             output_video=annotated_path)
+        print("before generated the annotated output video!")
+
         # Extract data from analysis results
         video_metadata = {
             "path": video_path,
@@ -690,12 +699,13 @@ def main():
         }
         biomechanics = analysis_results["biomechanics"]
         annotated_video = analysis_results["annotated_video_path"]
-
+        print("generated the annotated output video!")
         # Call Gemini LLM for coaching insights
         gemini_analysis = call_gemini_llm(biomechanics)
 
         # Format and output results
-        results = format_output(video_metadata, biomechanics, gemini_analysis, annotated_video)
+        results = format_output(video_metadata, biomechanics, gemini_analysis,
+                                annotated_video)
 
         # Print the final JSON output for the backend to parse
         print("\n" + "=" * 60)
@@ -710,7 +720,7 @@ def main():
         error_traceback = traceback.format_exc()
         print(f"\n[ERROR] Exception occurred: {str(e)}")
         print(f"[ERROR] Full traceback:\n{error_traceback}")
-        
+
         error_output = {
             "status": "error",
             "message": str(e),
