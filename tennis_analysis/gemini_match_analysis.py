@@ -148,13 +148,26 @@ def format_summary(raw_text):
 # ============================
 # GEMINI CALL
 # ============================
-def analyze_match(api_key):
+def analyze_match(api_key, video_path=None):
+    """
+    Analyze a tennis match video using Gemini.
+    
+    Args:
+        api_key: Google AI Studio API key
+        video_path: Path to the annotated video file (optional, uses default if not provided)
+    
+    Returns:
+        Dictionary with analysis results
+    """
+    video_to_analyze = video_path if video_path else VIDEO_PATH
+    print(f"[GeminiAnalysis] Analyzing video: {video_to_analyze}")
+    
     client = genai.Client(
         api_key=api_key,
         http_options={"api_version": "v1alpha"}
     )
 
-    frames_b64 = extract_frames(VIDEO_PATH, FRAME_STRIDE)
+    frames_b64 = extract_frames(video_to_analyze, FRAME_STRIDE)
 
     parts = [types.Part(text=PROMPT_TEXT)]
 
@@ -175,12 +188,20 @@ def analyze_match(api_key):
     )
 
     raw_text = response.text or ""
+    print(f"[GeminiAnalysis] Raw response received ({len(raw_text)} chars)")
+    
+    # Parse and format the response
+    json_text = extract_json(raw_text)
+    analysis_data = json.loads(json_text)
     formatted_text = format_summary(raw_text)
 
     with open(OUTPUT_TEXT_PATH, "w", encoding="utf-8") as f:
         f.write(formatted_text)
 
-    print(f"\nFormatted match summary saved to: {OUTPUT_TEXT_PATH}\n")
+    print(f"[GeminiAnalysis] Formatted match summary saved to: {OUTPUT_TEXT_PATH}")
+    
+    # Return the parsed analysis data
+    return analysis_data
 
 # ============================
 # RUN

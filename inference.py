@@ -461,72 +461,78 @@ def generate_annotated_video(video_metadata: Dict[str, Any],
 # ============================================================================
 
 
-def call_gemini_llm(biomechanics: Dict[str, Any]) -> Dict[str, Any]:
+def call_gemini_llm(biomechanics: Dict[str, Any], annotated_video_path: str = None) -> Dict[str, Any]:
     """
     Call Gemini LLM to generate professional coaching insights.
 
-    Uses Replit AI Integrations for Gemini access (no API key required).
-    Sends biomechanical data and receives structured coaching feedback.
+    Calls gemini_match_analysis.py to analyze the annotated video.
 
     Args:
         biomechanics: Dictionary of analyzed biomechanical metrics
+        annotated_video_path: Path to the annotated video file
 
     Returns:
         Structured analysis with strengths, fixes, and practice plan
     """
     print(f"[STEP 3.1] Calling Gemini LLM for coaching analysis")
+    print(f"[STEP 3.1] Annotated video path: {annotated_video_path}")
 
-    # PSEUDO CODE - Actual Gemini API call
-    # ---------------------------------------------------------
-    # import google.generativeai as genai
-    #
-    # # Configure with Replit AI Integrations
-    # genai.configure(
-    #     api_key=GEMINI_API_KEY,
-    #     transport="rest",
-    #     client_options={"api_endpoint": GEMINI_BASE_URL}
-    # )
-    #
-    # model = genai.GenerativeModel(GEMINI_MODEL)
-    #
-    # prompt = f"""
-    # You are an expert tennis coach analyzing a player's biomechanical data.
-    #
-    # BIOMECHANICAL METRICS:
-    # {json.dumps(biomechanics, indent=2)}
-    #
-    # Provide analysis in this exact JSON format:
-    # {{
-    #     "dna": {{
-    #         "technical": <score 0-100>,
-    #         "tactical": <score 0-100>,
-    #         "summary": "<professional analysis paragraph>"
-    #     }},
-    #     "strengths": ["<strength 1>", "<strength 2>", "<strength 3>"],
-    #     "fixes": ["<fix 1>", "<fix 2>"],
-    #     "plan": [
-    #         {{"title": "DRILL 1", "description": "<drill details>"}},
-    #         {{"title": "DRILL 2", "description": "<drill details>"}}
-    #     ]
-    # }}
-    # """
-    #
-    # response = model.generate_content(
-    #     prompt,
-    #     generation_config={
-    #         "temperature": 0.7,
-    #         "max_output_tokens": 2048,
-    #         "response_mime_type": "application/json"
-    #     }
-    # )
-    #
-    # return json.loads(response.text)
-    # ---------------------------------------------------------
+    # Get API key from environment
+    api_key = os.environ.get("GEMINI_API_KEY")
+    
+    if api_key and annotated_video_path:
+        try:
+            # Import and call gemini_match_analysis
+            import importlib.util
+            gemini_path = os.path.join(os.path.dirname(__file__), 'tennis_analysis', 'gemini_match_analysis.py')
+            spec = importlib.util.spec_from_file_location("gemini_analysis", gemini_path)
+            if spec is None or spec.loader is None:
+                raise ImportError(f"Could not load gemini_match_analysis from {gemini_path}")
+            gemini_module = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(gemini_module)
+            
+            print(f"[STEP 3.2] Running Gemini match analysis on: {annotated_video_path}")
+            gemini_result = gemini_module.analyze_match(api_key, annotated_video_path)
+            
+            # Log the analysis results
+            print(f"\n{'='*60}")
+            print(f"[GEMINI ANALYSIS RESULTS]")
+            print(f"{'='*60}")
+            print(json.dumps(gemini_result, indent=2))
+            print(f"{'='*60}\n")
+            
+            # Convert gemini_result to expected format
+            analysis = {
+                "dna": {
+                    "technical": 75,
+                    "tactical": 70,
+                    "summary": gemini_result.get("overall_match_summary", "Analysis complete.")
+                },
+                "strengths": gemini_result.get("player_1", {}).get("strong_shots", []),
+                "fixes": gemini_result.get("player_1", {}).get("weak_shots", []),
+                "player_analysis": gemini_result,
+                "plan": [{
+                    "title": "Footwork Improvement",
+                    "description": gemini_result.get("player_1", {}).get("footwork", "Work on court movement.")
+                }, {
+                    "title": "Shot Tendencies",
+                    "description": gemini_result.get("player_1", {}).get("shot_tendencies", "Focus on shot variety.")
+                }]
+            }
+            
+            print(f"[STEP 3.3] Gemini analysis complete")
+            return analysis
+            
+        except Exception as e:
+            print(f"[STEP 3.1] Gemini analysis failed: {str(e)}")
+            print(f"[STEP 3.1] Falling back to biomechanics-based analysis")
+    else:
+        if not api_key:
+            print(f"[STEP 3.1] GEMINI_API_KEY not set - using fallback analysis")
+        if not annotated_video_path:
+            print(f"[STEP 3.1] No annotated video path provided - using fallback analysis")
 
-    # DUMMY IMPLEMENTATION - Simulated Gemini response
-    # This would be replaced by actual API call in production
-
-    # Generate scores based on biomechanics
+    # Fallback: Generate analysis based on biomechanics data
     technical_score = int((biomechanics["kinetic_chain_efficiency"] * 0.3) +
                           (biomechanics["balance_score"] * 0.3) +
                           (biomechanics["stroke_consistency"] * 0.4))
@@ -536,52 +542,35 @@ def call_gemini_llm(biomechanics: Dict[str, Any]) -> Dict[str, Any]:
 
     analysis = {
         "dna": {
-            "technical":
-            technical_score,
-            "tactical":
-            tactical_score,
-            "summary":
-            (f"The player demonstrates solid biomechanical fundamentals with "
-             f"{biomechanics['kinetic_chain_efficiency']}% kinetic chain efficiency "
-             f"and {biomechanics['core_rotation_speed']}°/s core rotation speed. "
-             f"The shoulder-hip separation of {biomechanics['shoulder_hip_separation']}° "
-             f"indicates good power generation potential. Focus areas include "
-             f"improving stroke consistency ({biomechanics['stroke_consistency']}%) "
-             f"and footwork efficiency ({biomechanics['footwork_efficiency']}%)."
-             )
+            "technical": technical_score,
+            "tactical": tactical_score,
+            "summary": (f"The player demonstrates solid biomechanical fundamentals with "
+                       f"{biomechanics['kinetic_chain_efficiency']}% kinetic chain efficiency "
+                       f"and {biomechanics['core_rotation_speed']}°/s core rotation speed. "
+                       f"The shoulder-hip separation of {biomechanics['shoulder_hip_separation']}° "
+                       f"indicates good power generation potential. Focus areas include "
+                       f"improving stroke consistency ({biomechanics['stroke_consistency']}%) "
+                       f"and footwork efficiency ({biomechanics['footwork_efficiency']}%).")
         },
         "strengths": [
-            f"Test Results: Kinetic chain efficiency at {biomechanics['kinetic_chain_efficiency']}%, "
-            f"core rotation speed {biomechanics['core_rotation_speed']}°/s",
-            f"Strong balance during strokes with {biomechanics['balance_score']}% stability score",
-            f"Effective racket head speed averaging {biomechanics['racket_head_speed']} MPH"
+            f"Kinetic chain efficiency at {biomechanics['kinetic_chain_efficiency']}%",
+            f"Strong balance with {biomechanics['balance_score']}% stability score",
+            f"Racket head speed averaging {biomechanics['racket_head_speed']:.1f} MPH"
         ],
         "fixes": [
-            f"Improve footwork efficiency (currently {biomechanics['footwork_efficiency']}%) "
-            f"to enhance court coverage and shot preparation time",
-            f"Work on stroke consistency (currently {biomechanics['stroke_consistency']}%) "
-            f"to reduce unforced errors during rallies"
+            f"Improve footwork efficiency (currently {biomechanics['footwork_efficiency']}%)",
+            f"Work on stroke consistency (currently {biomechanics['stroke_consistency']}%)"
         ],
         "plan": [{
-            "title":
-            "DRILL 1: Kinetic Chain Activation",
-            "description":
-            ("Shadow swing practice focusing on sequential activation: "
-             "legs → hips → core → shoulders → arm. Perform 3 sets of 10 swings "
-             "with a resistance band for enhanced muscle memory.")
+            "title": "DRILL 1: Kinetic Chain Activation",
+            "description": "Shadow swing practice focusing on sequential activation: legs → hips → core → shoulders → arm."
         }, {
-            "title":
-            "DRILL 2: Footwork Ladder",
-            "description":
-            ("Agility ladder exercises combined with split-step timing. "
-             "Practice recovery steps after each shot simulation. "
-             "10 minutes daily for 2 weeks.")
+            "title": "DRILL 2: Footwork Ladder",
+            "description": "Agility ladder exercises combined with split-step timing. 10 minutes daily for 2 weeks."
         }]
     }
 
-    print(
-        f"[STEP 3.1] Gemini analysis complete: Technical {technical_score}%, Tactical {tactical_score}%"
-    )
+    print(f"[STEP 3.1] Fallback analysis complete: Technical {technical_score}%, Tactical {tactical_score}%")
     return analysis
 
 
@@ -701,7 +690,7 @@ def main():
         annotated_video = analysis_results["annotated_video_path"]
         print("generated the annotated output video!")
         # Call Gemini LLM for coaching insights
-        gemini_analysis = call_gemini_llm(biomechanics)
+        gemini_analysis = call_gemini_llm(biomechanics, annotated_video)
 
         # Format and output results
         results = format_output(video_metadata, biomechanics, gemini_analysis,
