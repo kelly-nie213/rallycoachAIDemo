@@ -111,10 +111,30 @@ export default function ResultPage() {
               <div className="w-full max-w-2xl bg-[#141820] border border-[#1e2430] rounded-3xl p-12 relative overflow-hidden">
                 <div className="absolute inset-0 bg-gradient-to-br from-[#d4ff00]/5 to-transparent pointer-events-none" />
                 
+                {/* Animated scanning line effect */}
+                <motion.div 
+                  className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-[#d4ff00] to-transparent opacity-60"
+                  animate={{ y: [0, 200, 0] }}
+                  transition={{ duration: 3, repeat: Infinity, ease: "linear" }}
+                />
+                
                 <div className="flex items-center justify-between mb-12 relative">
                   <div className="absolute top-1/2 left-0 w-full h-0.5 bg-[#1e2430] -translate-y-1/2" />
-                  <div className="absolute top-1/2 left-0 h-0.5 bg-gradient-to-r from-[#d4ff00] to-[#d4ff00]/50 -translate-y-1/2 transition-all duration-1000" 
-                       style={{ width: video.status === "processing" ? "50%" : "10%" }} />
+                  
+                  {/* Animated progress bar */}
+                  <motion.div 
+                    className="absolute top-1/2 left-0 h-1 bg-gradient-to-r from-[#d4ff00] via-[#84cea6] to-[#d4ff00] -translate-y-1/2 rounded-full"
+                    initial={{ width: "10%" }}
+                    animate={{ 
+                      width: video.status === "processing" ? ["20%", "60%", "40%", "70%", "50%"] : "10%",
+                      opacity: [1, 0.7, 1]
+                    }}
+                    transition={{ 
+                      duration: 2, 
+                      repeat: Infinity, 
+                      ease: "easeInOut" 
+                    }}
+                  />
                   
                   <div className="relative z-10 flex flex-col items-center gap-2">
                     <div className="w-12 h-12 rounded-2xl bg-[#d4ff00] flex items-center justify-center text-black shadow-lg shadow-[#d4ff00]/20">
@@ -124,9 +144,16 @@ export default function ResultPage() {
                   </div>
 
                   <div className="relative z-10 flex flex-col items-center gap-2">
-                    <div className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-all duration-500 ${video.status === "processing" ? "bg-[#d4ff00] text-black shadow-lg shadow-[#d4ff00]/20" : "bg-[#1e2430] text-gray-500"}`}>
+                    <motion.div 
+                      className={`w-12 h-12 rounded-2xl flex items-center justify-center ${video.status === "processing" ? "bg-[#d4ff00] text-black shadow-lg shadow-[#d4ff00]/20" : "bg-[#1e2430] text-gray-500"}`}
+                      animate={video.status === "processing" ? { 
+                        scale: [1, 1.1, 1],
+                        boxShadow: ["0 0 0 0 rgba(212, 255, 0, 0.4)", "0 0 0 10px rgba(212, 255, 0, 0)", "0 0 0 0 rgba(212, 255, 0, 0)"]
+                      } : {}}
+                      transition={{ duration: 1.5, repeat: Infinity }}
+                    >
                       <Activity className={`w-6 h-6 ${video.status === "processing" ? "animate-pulse" : ""}`} />
-                    </div>
+                    </motion.div>
                     <span className={`text-[10px] font-bold tracking-widest ${video.status === "processing" ? "text-[#d4ff00]" : "text-gray-500"}`}>INFERENCE</span>
                   </div>
 
@@ -140,12 +167,43 @@ export default function ResultPage() {
 
                 <div className="text-center relative z-10">
                   <h3 className="text-xl font-bold mb-3">
-                    {video.status === "pending" ? "Queuing process..." : "GPU Inference: Detecting player skeletal markers..."}
+                    {video.status === "pending" ? "Queuing process..." : (
+                      <motion.span
+                        animate={{ opacity: [1, 0.5, 1] }}
+                        transition={{ duration: 1.5, repeat: Infinity }}
+                      >
+                        GPU Inference: Detecting player skeletal markers...
+                      </motion.span>
+                    )}
                   </h3>
+                  
+                  {/* Animated loading dots */}
+                  <div className="flex items-center justify-center gap-2 mb-4">
+                    {[0, 1, 2, 3, 4].map((i) => (
+                      <motion.div
+                        key={i}
+                        className="w-2 h-2 rounded-full bg-[#d4ff00]"
+                        animate={{ 
+                          scale: [1, 1.5, 1],
+                          opacity: [0.3, 1, 0.3]
+                        }}
+                        transition={{ 
+                          duration: 1, 
+                          repeat: Infinity, 
+                          delay: i * 0.15 
+                        }}
+                      />
+                    ))}
+                  </div>
+                  
                   <div className="flex items-center justify-center gap-4 text-[10px] font-bold tracking-widest text-gray-500">
                     <span className="flex items-center gap-1.5">
-                      <span className="w-1.5 h-1.5 rounded-full bg-[#d4ff00] animate-pulse" />
-                      LATENCY: 240MS
+                      <motion.span 
+                        className="w-2 h-2 rounded-full bg-[#d4ff00]"
+                        animate={{ scale: [1, 1.3, 1], opacity: [1, 0.5, 1] }}
+                        transition={{ duration: 0.8, repeat: Infinity }}
+                      />
+                      ACTIVE
                     </span>
                     <span className="w-1 h-1 rounded-full bg-gray-600" />
                     <span>WORKERS: ACTIVE</span>
