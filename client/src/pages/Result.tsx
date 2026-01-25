@@ -2,29 +2,33 @@ import { useQuery } from "@tanstack/react-query";
 import { useParams, Link } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
-  Dna, 
   Zap, 
   Wrench, 
-  ClipboardList, 
+  Footprints,
+  Target,
   Loader2, 
   CheckCircle2, 
   Activity,
-  ArrowLeft
+  ArrowLeft,
+  User,
+  FileText,
+  Dna
 } from "lucide-react";
 import { Navbar } from "@/components/Navbar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Progress } from "@/components/ui/progress";
 import type { Video } from "@shared/schema";
 
+interface PlayerAnalysis {
+  strong_shots: string[];
+  weak_shots: string[];
+  footwork: string;
+  shot_tendencies: string;
+}
+
 interface AnalysisData {
-  dna: {
-    technical: number;
-    tactical: number;
-    summary: string;
-  };
-  strengths: string[];
-  fixes: string[];
-  plan: { title: string; description: string }[];
+  player_1: PlayerAnalysis;
+  player_2: PlayerAnalysis;
+  overall_match_summary: string;
 }
 
 export default function ResultPage() {
@@ -122,86 +126,161 @@ export default function ResultPage() {
               key="results"
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              className="grid grid-cols-1 md:grid-cols-2 gap-6"
+              className="space-y-6"
             >
+              {/* Match Summary */}
               <Card className="bg-[#141820] border-[#1e2430] rounded-3xl overflow-hidden">
                 <CardHeader className="border-b border-[#1e2430] pb-4">
                   <CardTitle className="text-xl font-bold flex items-center gap-2">
-                    Performance DNA
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="pt-6 space-y-8">
-                  <div className="space-y-4">
-                    <div className="space-y-2">
-                      <div className="flex justify-between text-[10px] font-bold tracking-widest">
-                        <span>TECHNICAL PROWESS</span>
-                        <span className="text-[#d4ff00]">{analysis?.dna.technical}%</span>
-                      </div>
-                      <Progress value={analysis?.dna.technical} className="h-1.5 bg-[#1e2430]" />
-                    </div>
-                    <div className="space-y-2">
-                      <div className="flex justify-between text-[10px] font-bold tracking-widest">
-                        <span>TACTICAL IQ</span>
-                        <span className="text-[#3b82f6]">{analysis?.dna.tactical}%</span>
-                      </div>
-                      <Progress value={analysis?.dna.tactical} className="h-1.5 bg-[#1e2430]" />
-                    </div>
-                  </div>
-
-                  <div className="bg-[#0a0c10] border border-[#1e2430] rounded-2xl p-6 italic text-gray-300 text-sm leading-relaxed">
-                    "{analysis?.dna.summary}"
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card className="bg-[#141820] border-[#1e2430] rounded-3xl">
-                <CardHeader className="border-b border-[#1e2430] pb-4">
-                  <CardTitle className="text-xl font-bold flex items-center gap-2 text-[#d4ff00]">
-                    <Zap className="w-5 h-5" /> Elite Strengths
+                    <FileText className="w-5 h-5 text-[#d4ff00]" /> Match Summary
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="pt-6">
-                  <ul className="space-y-6">
-                    {analysis?.strengths.map((strength, i) => (
-                      <li key={i} className="flex gap-3 text-sm">
-                        <div className="w-1.5 h-1.5 rounded-full bg-[#d4ff00] mt-1.5 shrink-0" />
-                        <span className="text-gray-300">{strength}</span>
-                      </li>
-                    ))}
-                  </ul>
+                  <div className="bg-[#0a0c10] border border-[#1e2430] rounded-2xl p-6 text-gray-300 text-sm leading-relaxed">
+                    {analysis?.overall_match_summary || "No summary available"}
+                  </div>
                 </CardContent>
               </Card>
 
-              <Card className="bg-[#141820] border-[#1e2430] rounded-3xl md:col-span-1">
-                <CardHeader className="border-b border-[#1e2430] pb-4">
-                  <CardTitle className="text-xl font-bold flex items-center gap-2 text-[#f97316]">
-                    <Wrench className="w-5 h-5" /> Biomechanical Fixes
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="pt-6 space-y-4">
-                  {analysis?.fixes.map((fix, i) => (
-                    <div key={i} className="bg-[#0a0c10] border border-[#1e2430] rounded-2xl p-4 text-sm text-gray-400">
-                      {fix}
-                    </div>
-                  ))}
-                </CardContent>
-              </Card>
+              {/* Player 1 Analysis */}
+              <div className="space-y-4">
+                <h2 className="text-lg font-bold flex items-center gap-2 text-[#d4ff00]">
+                  <User className="w-5 h-5" /> Player 1 Analysis
+                </h2>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <Card className="bg-[#141820] border-[#1e2430] rounded-3xl">
+                    <CardHeader className="border-b border-[#1e2430] pb-4">
+                      <CardTitle className="text-xl font-bold flex items-center gap-2 text-[#22c55e]">
+                        <Zap className="w-5 h-5" /> Strong Shots
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="pt-6">
+                      <ul className="space-y-4">
+                        {analysis?.player_1?.strong_shots?.map((shot, i) => (
+                          <li key={i} className="flex gap-3 text-sm" data-testid={`text-player1-strength-${i}`}>
+                            <div className="w-1.5 h-1.5 rounded-full bg-[#22c55e] mt-1.5 shrink-0" />
+                            <span className="text-gray-300">{shot}</span>
+                          </li>
+                        )) || <li className="text-gray-500">No data available</li>}
+                      </ul>
+                    </CardContent>
+                  </Card>
 
-              <Card className="bg-[#141820] border-[#1e2430] rounded-3xl md:col-span-1">
-                <CardHeader className="border-b border-[#1e2430] pb-4">
-                  <CardTitle className="text-xl font-bold flex items-center gap-2 text-[#3b82f6]">
-                    <ClipboardList className="w-5 h-5" /> Pro Practice Plan
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="pt-6 space-y-4">
-                  {analysis?.plan.map((drill, i) => (
-                    <div key={i} className="bg-[#0a0c10] border border-[#1e2430] rounded-2xl p-5 space-y-2">
-                      <div className="text-[10px] font-bold tracking-widest text-[#3b82f6]">{drill.title}</div>
-                      <div className="text-sm text-gray-300 leading-relaxed">{drill.description}</div>
-                    </div>
-                  ))}
-                </CardContent>
-              </Card>
+                  <Card className="bg-[#141820] border-[#1e2430] rounded-3xl">
+                    <CardHeader className="border-b border-[#1e2430] pb-4">
+                      <CardTitle className="text-xl font-bold flex items-center gap-2 text-[#f97316]">
+                        <Wrench className="w-5 h-5" /> Weak Shots
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="pt-6">
+                      <ul className="space-y-4">
+                        {analysis?.player_1?.weak_shots?.map((shot, i) => (
+                          <li key={i} className="flex gap-3 text-sm" data-testid={`text-player1-weakness-${i}`}>
+                            <div className="w-1.5 h-1.5 rounded-full bg-[#f97316] mt-1.5 shrink-0" />
+                            <span className="text-gray-300">{shot}</span>
+                          </li>
+                        )) || <li className="text-gray-500">No data available</li>}
+                      </ul>
+                    </CardContent>
+                  </Card>
+
+                  <Card className="bg-[#141820] border-[#1e2430] rounded-3xl">
+                    <CardHeader className="border-b border-[#1e2430] pb-4">
+                      <CardTitle className="text-xl font-bold flex items-center gap-2 text-[#3b82f6]">
+                        <Footprints className="w-5 h-5" /> Footwork
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="pt-6">
+                      <div className="bg-[#0a0c10] border border-[#1e2430] rounded-2xl p-4 text-sm text-gray-300" data-testid="text-player1-footwork">
+                        {analysis?.player_1?.footwork || "No footwork analysis available"}
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  <Card className="bg-[#141820] border-[#1e2430] rounded-3xl">
+                    <CardHeader className="border-b border-[#1e2430] pb-4">
+                      <CardTitle className="text-xl font-bold flex items-center gap-2 text-[#8b5cf6]">
+                        <Target className="w-5 h-5" /> Shot Tendencies
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="pt-6">
+                      <div className="bg-[#0a0c10] border border-[#1e2430] rounded-2xl p-4 text-sm text-gray-300" data-testid="text-player1-tendencies">
+                        {analysis?.player_1?.shot_tendencies || "No shot tendency analysis available"}
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+              </div>
+
+              {/* Player 2 Analysis */}
+              <div className="space-y-4">
+                <h2 className="text-lg font-bold flex items-center gap-2 text-[#3b82f6]">
+                  <User className="w-5 h-5" /> Player 2 Analysis
+                </h2>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <Card className="bg-[#141820] border-[#1e2430] rounded-3xl">
+                    <CardHeader className="border-b border-[#1e2430] pb-4">
+                      <CardTitle className="text-xl font-bold flex items-center gap-2 text-[#22c55e]">
+                        <Zap className="w-5 h-5" /> Strong Shots
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="pt-6">
+                      <ul className="space-y-4">
+                        {analysis?.player_2?.strong_shots?.map((shot, i) => (
+                          <li key={i} className="flex gap-3 text-sm" data-testid={`text-player2-strength-${i}`}>
+                            <div className="w-1.5 h-1.5 rounded-full bg-[#22c55e] mt-1.5 shrink-0" />
+                            <span className="text-gray-300">{shot}</span>
+                          </li>
+                        )) || <li className="text-gray-500">No data available</li>}
+                      </ul>
+                    </CardContent>
+                  </Card>
+
+                  <Card className="bg-[#141820] border-[#1e2430] rounded-3xl">
+                    <CardHeader className="border-b border-[#1e2430] pb-4">
+                      <CardTitle className="text-xl font-bold flex items-center gap-2 text-[#f97316]">
+                        <Wrench className="w-5 h-5" /> Weak Shots
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="pt-6">
+                      <ul className="space-y-4">
+                        {analysis?.player_2?.weak_shots?.map((shot, i) => (
+                          <li key={i} className="flex gap-3 text-sm" data-testid={`text-player2-weakness-${i}`}>
+                            <div className="w-1.5 h-1.5 rounded-full bg-[#f97316] mt-1.5 shrink-0" />
+                            <span className="text-gray-300">{shot}</span>
+                          </li>
+                        )) || <li className="text-gray-500">No data available</li>}
+                      </ul>
+                    </CardContent>
+                  </Card>
+
+                  <Card className="bg-[#141820] border-[#1e2430] rounded-3xl">
+                    <CardHeader className="border-b border-[#1e2430] pb-4">
+                      <CardTitle className="text-xl font-bold flex items-center gap-2 text-[#3b82f6]">
+                        <Footprints className="w-5 h-5" /> Footwork
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="pt-6">
+                      <div className="bg-[#0a0c10] border border-[#1e2430] rounded-2xl p-4 text-sm text-gray-300" data-testid="text-player2-footwork">
+                        {analysis?.player_2?.footwork || "No footwork analysis available"}
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  <Card className="bg-[#141820] border-[#1e2430] rounded-3xl">
+                    <CardHeader className="border-b border-[#1e2430] pb-4">
+                      <CardTitle className="text-xl font-bold flex items-center gap-2 text-[#8b5cf6]">
+                        <Target className="w-5 h-5" /> Shot Tendencies
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="pt-6">
+                      <div className="bg-[#0a0c10] border border-[#1e2430] rounded-2xl p-4 text-sm text-gray-300" data-testid="text-player2-tendencies">
+                        {analysis?.player_2?.shot_tendencies || "No shot tendency analysis available"}
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+              </div>
             </motion.div>
           )}
         </AnimatePresence>
