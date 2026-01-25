@@ -478,8 +478,8 @@ def call_gemini_llm(biomechanics: Dict[str, Any], annotated_video_path: str = No
     print(f"[STEP 3.1] Calling Gemini LLM for coaching analysis")
     print(f"[STEP 3.1] Annotated video path: {annotated_video_path}")
 
-    # Get API key from environment
-    api_key = os.environ.get("GEMINI_API_KEY")
+    # Use the hardcoded API key or environment variable
+    api_key = GEMINI_API_KEY or os.environ.get("GEMINI_API_KEY")
     
     if api_key and annotated_video_path:
         try:
