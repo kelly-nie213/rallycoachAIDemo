@@ -258,7 +258,15 @@ class MiniCourt():
                # Get Player height in pixels
                frame_index_min = max(0, frame_num-20)
                frame_index_max = min(len(player_boxes), frame_num+50)
-               bboxes_heights_in_pixels = [get_height_of_bbox(player_boxes[i][player_id]) for i in range (frame_index_min,frame_index_max)]
+               # Only include frames where this player_id exists
+               bboxes_heights_in_pixels = [
+                   get_height_of_bbox(player_boxes[i][player_id]) 
+                   for i in range(frame_index_min, frame_index_max) 
+                   if player_id in player_boxes[i]
+               ]
+               # Fallback if no valid heights found
+               if not bboxes_heights_in_pixels:
+                   bboxes_heights_in_pixels = [get_height_of_bbox(bbox)]
                max_player_height_in_pixels = max(bboxes_heights_in_pixels)
 
 
