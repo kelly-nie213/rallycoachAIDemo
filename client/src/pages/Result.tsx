@@ -12,10 +12,14 @@ import {
   ArrowLeft,
   User,
   FileText,
-  Dna
+  Dna,
+  TrendingUp,
+  AlertTriangle,
+  Sparkles,
+  Trophy,
+  BarChart3
 } from "lucide-react";
 import { Navbar } from "@/components/Navbar";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { Video } from "@shared/schema";
 
 interface PlayerAnalysis {
@@ -53,19 +57,47 @@ export default function ResultPage() {
   const isProcessing = video.status === "pending" || video.status === "processing";
   const analysis: AnalysisData | null = video.analysisData ? JSON.parse(video.analysisData) : null;
 
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    visible: {
+      opacity: 1,
+      transition: { staggerChildren: 0.1 }
+    }
+  };
+
+  const itemVariants = {
+    hidden: { opacity: 0, y: 20 },
+    visible: { opacity: 1, y: 0 }
+  };
+
   return (
     <div className="min-h-screen bg-[#0a0c10] text-white flex flex-col font-sans">
       <Navbar />
 
-      <main className="flex-1 container mx-auto px-4 py-8 max-w-6xl">
-        <div className="mb-8 flex items-center gap-4">
-          <Link href="/upload">
-            <button className="p-2 hover:bg-[#141820] rounded-full transition-colors">
-              <ArrowLeft className="w-5 h-5" />
-            </button>
-          </Link>
-          <h1 className="text-2xl font-bold">Session Analysis #{video.id}</h1>
-        </div>
+      <main className="flex-1 container mx-auto px-4 py-8 max-w-7xl">
+        {/* Header */}
+        <motion.div 
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="mb-10"
+        >
+          <div className="flex items-center gap-4 mb-2">
+            <Link href="/upload">
+              <button className="p-2.5 bg-[#141820] hover:bg-[#1e2430] border border-[#1e2430] rounded-xl transition-all duration-300 hover:border-[#d4ff00]/30" data-testid="button-back">
+                <ArrowLeft className="w-5 h-5" />
+              </button>
+            </Link>
+            <div>
+              <div className="flex items-center gap-3">
+                <h1 className="text-3xl font-bold tracking-tight">Match Analysis</h1>
+                <span className="px-3 py-1 bg-[#d4ff00]/10 border border-[#d4ff00]/30 rounded-full text-[#d4ff00] text-xs font-bold tracking-wider">
+                  #{video.id}
+                </span>
+              </div>
+              <p className="text-gray-500 text-sm mt-1">AI-powered biomechanical performance report</p>
+            </div>
+          </div>
+        </motion.div>
 
         <AnimatePresence mode="wait">
           {isProcessing ? (
@@ -77,210 +109,339 @@ export default function ResultPage() {
               className="flex flex-col items-center justify-center h-[60vh]"
             >
               <div className="w-full max-w-2xl bg-[#141820] border border-[#1e2430] rounded-3xl p-12 relative overflow-hidden">
+                <div className="absolute inset-0 bg-gradient-to-br from-[#d4ff00]/5 to-transparent pointer-events-none" />
+                
                 <div className="flex items-center justify-between mb-12 relative">
                   <div className="absolute top-1/2 left-0 w-full h-0.5 bg-[#1e2430] -translate-y-1/2" />
-                  <div className="absolute top-1/2 left-0 h-0.5 bg-[#d4ff00] -translate-y-1/2 transition-all duration-1000" 
+                  <div className="absolute top-1/2 left-0 h-0.5 bg-gradient-to-r from-[#d4ff00] to-[#d4ff00]/50 -translate-y-1/2 transition-all duration-1000" 
                        style={{ width: video.status === "processing" ? "50%" : "10%" }} />
                   
                   <div className="relative z-10 flex flex-col items-center gap-2">
-                    <div className="w-10 h-10 rounded-xl bg-[#d4ff00] flex items-center justify-center text-black">
+                    <div className="w-12 h-12 rounded-2xl bg-[#d4ff00] flex items-center justify-center text-black shadow-lg shadow-[#d4ff00]/20">
                       <CheckCircle2 className="w-6 h-6" />
                     </div>
                     <span className="text-[10px] font-bold tracking-widest text-[#d4ff00]">UPLOAD</span>
                   </div>
 
                   <div className="relative z-10 flex flex-col items-center gap-2">
-                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center transition-colors ${video.status === "processing" ? "bg-[#d4ff00] text-black" : "bg-[#1e2430] text-gray-500"}`}>
+                    <div className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-all duration-500 ${video.status === "processing" ? "bg-[#d4ff00] text-black shadow-lg shadow-[#d4ff00]/20" : "bg-[#1e2430] text-gray-500"}`}>
                       <Activity className={`w-6 h-6 ${video.status === "processing" ? "animate-pulse" : ""}`} />
                     </div>
                     <span className={`text-[10px] font-bold tracking-widest ${video.status === "processing" ? "text-[#d4ff00]" : "text-gray-500"}`}>INFERENCE</span>
                   </div>
 
                   <div className="relative z-10 flex flex-col items-center gap-2">
-                    <div className="w-10 h-10 rounded-xl bg-[#1e2430] flex items-center justify-center text-gray-500">
+                    <div className="w-12 h-12 rounded-2xl bg-[#1e2430] flex items-center justify-center text-gray-500">
                       <Dna className="w-6 h-6" />
                     </div>
                     <span className="text-[10px] font-bold tracking-widest text-gray-500">ANALYSIS</span>
                   </div>
                 </div>
 
-                <div className="text-center">
-                  <h3 className="text-xl font-bold mb-2">
+                <div className="text-center relative z-10">
+                  <h3 className="text-xl font-bold mb-3">
                     {video.status === "pending" ? "Queuing process..." : "GPU Inference: Detecting player skeletal markers..."}
                   </h3>
                   <div className="flex items-center justify-center gap-4 text-[10px] font-bold tracking-widest text-gray-500">
-                    <span>LATENCY: 240MS</span>
-                    <span className="w-1 h-1 rounded-full bg-gray-500" />
+                    <span className="flex items-center gap-1.5">
+                      <span className="w-1.5 h-1.5 rounded-full bg-[#d4ff00] animate-pulse" />
+                      LATENCY: 240MS
+                    </span>
+                    <span className="w-1 h-1 rounded-full bg-gray-600" />
                     <span>WORKERS: ACTIVE</span>
                   </div>
                 </div>
               </div>
             </motion.div>
           ) : video.status === "failed" ? (
-            <div className="text-center py-20">
-              <h2 className="text-2xl font-bold text-red-500">Analysis Failed</h2>
-              <p className="text-gray-400">Please try uploading the video again.</p>
-            </div>
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="flex flex-col items-center justify-center h-[60vh]"
+            >
+              <div className="bg-[#141820] border border-red-500/30 rounded-3xl p-12 text-center max-w-md">
+                <div className="w-16 h-16 rounded-2xl bg-red-500/10 flex items-center justify-center mx-auto mb-6">
+                  <AlertTriangle className="w-8 h-8 text-red-500" />
+                </div>
+                <h2 className="text-2xl font-bold text-red-400 mb-2">Analysis Failed</h2>
+                <p className="text-gray-400 mb-6">Something went wrong during video processing. Please try uploading the video again.</p>
+                <Link href="/upload">
+                  <button className="px-6 py-3 bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 rounded-xl text-red-400 font-medium transition-colors">
+                    Try Again
+                  </button>
+                </Link>
+              </div>
+            </motion.div>
           ) : (
             <motion.div
               key="results"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="space-y-6"
+              variants={containerVariants}
+              initial="hidden"
+              animate="visible"
+              className="space-y-8"
             >
-              {/* Match Summary */}
-              <Card className="bg-[#141820] border-[#1e2430] rounded-3xl overflow-hidden">
-                <CardHeader className="border-b border-[#1e2430] pb-4">
-                  <CardTitle className="text-xl font-bold flex items-center gap-2">
-                    <FileText className="w-5 h-5 text-[#d4ff00]" /> Match Summary
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="pt-6">
-                  <div className="bg-[#0a0c10] border border-[#1e2430] rounded-2xl p-6 text-gray-300 text-sm leading-relaxed">
-                    {analysis?.overall_match_summary || "No summary available"}
+              {/* Match Summary Section */}
+              <motion.section variants={itemVariants}>
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#d4ff00] to-[#84cea6] flex items-center justify-center">
+                    <Trophy className="w-5 h-5 text-black" />
                   </div>
-                </CardContent>
-              </Card>
-
-              {/* Player 1 Analysis */}
-              <div className="space-y-4">
-                <h2 className="text-lg font-bold flex items-center gap-2 text-[#d4ff00]">
-                  <User className="w-5 h-5" /> Player 1 Analysis
-                </h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <Card className="bg-[#141820] border-[#1e2430] rounded-3xl">
-                    <CardHeader className="border-b border-[#1e2430] pb-4">
-                      <CardTitle className="text-xl font-bold flex items-center gap-2 text-[#22c55e]">
-                        <Zap className="w-5 h-5" /> Strong Shots
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent className="pt-6">
-                      <ul className="space-y-4">
-                        {analysis?.player_1?.strong_shots?.map((shot, i) => (
-                          <li key={i} className="flex gap-3 text-sm" data-testid={`text-player1-strength-${i}`}>
-                            <div className="w-1.5 h-1.5 rounded-full bg-[#22c55e] mt-1.5 shrink-0" />
-                            <span className="text-gray-300">{shot}</span>
-                          </li>
-                        )) || <li className="text-gray-500">No data available</li>}
-                      </ul>
-                    </CardContent>
-                  </Card>
-
-                  <Card className="bg-[#141820] border-[#1e2430] rounded-3xl">
-                    <CardHeader className="border-b border-[#1e2430] pb-4">
-                      <CardTitle className="text-xl font-bold flex items-center gap-2 text-[#f97316]">
-                        <Wrench className="w-5 h-5" /> Weak Shots
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent className="pt-6">
-                      <ul className="space-y-4">
-                        {analysis?.player_1?.weak_shots?.map((shot, i) => (
-                          <li key={i} className="flex gap-3 text-sm" data-testid={`text-player1-weakness-${i}`}>
-                            <div className="w-1.5 h-1.5 rounded-full bg-[#f97316] mt-1.5 shrink-0" />
-                            <span className="text-gray-300">{shot}</span>
-                          </li>
-                        )) || <li className="text-gray-500">No data available</li>}
-                      </ul>
-                    </CardContent>
-                  </Card>
-
-                  <Card className="bg-[#141820] border-[#1e2430] rounded-3xl">
-                    <CardHeader className="border-b border-[#1e2430] pb-4">
-                      <CardTitle className="text-xl font-bold flex items-center gap-2 text-[#3b82f6]">
-                        <Footprints className="w-5 h-5" /> Footwork
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent className="pt-6">
-                      <div className="bg-[#0a0c10] border border-[#1e2430] rounded-2xl p-4 text-sm text-gray-300" data-testid="text-player1-footwork">
-                        {analysis?.player_1?.footwork || "No footwork analysis available"}
-                      </div>
-                    </CardContent>
-                  </Card>
-
-                  <Card className="bg-[#141820] border-[#1e2430] rounded-3xl">
-                    <CardHeader className="border-b border-[#1e2430] pb-4">
-                      <CardTitle className="text-xl font-bold flex items-center gap-2 text-[#8b5cf6]">
-                        <Target className="w-5 h-5" /> Shot Tendencies
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent className="pt-6">
-                      <div className="bg-[#0a0c10] border border-[#1e2430] rounded-2xl p-4 text-sm text-gray-300" data-testid="text-player1-tendencies">
-                        {analysis?.player_1?.shot_tendencies || "No shot tendency analysis available"}
-                      </div>
-                    </CardContent>
-                  </Card>
+                  <div>
+                    <h2 className="text-xl font-bold">Match Summary</h2>
+                    <p className="text-xs text-gray-500 tracking-wide">EXECUTIVE OVERVIEW</p>
+                  </div>
                 </div>
+                <div className="bg-[#141820] border border-[#1e2430] rounded-2xl p-6 relative overflow-hidden">
+                  <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-[#d4ff00] via-[#84cea6] to-[#3b82f6]" />
+                  <p className="text-gray-300 leading-relaxed text-[15px]" data-testid="text-match-summary">
+                    {analysis?.overall_match_summary || "No summary available"}
+                  </p>
+                </div>
+              </motion.section>
+
+              {/* Divider */}
+              <div className="flex items-center gap-4 py-2">
+                <div className="flex-1 h-px bg-gradient-to-r from-transparent via-[#1e2430] to-transparent" />
+                <span className="text-[10px] font-bold tracking-widest text-gray-600">PLAYER ANALYSIS</span>
+                <div className="flex-1 h-px bg-gradient-to-r from-transparent via-[#1e2430] to-transparent" />
               </div>
 
-              {/* Player 2 Analysis */}
-              <div className="space-y-4">
-                <h2 className="text-lg font-bold flex items-center gap-2 text-[#3b82f6]">
-                  <User className="w-5 h-5" /> Player 2 Analysis
-                </h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <Card className="bg-[#141820] border-[#1e2430] rounded-3xl">
-                    <CardHeader className="border-b border-[#1e2430] pb-4">
-                      <CardTitle className="text-xl font-bold flex items-center gap-2 text-[#22c55e]">
-                        <Zap className="w-5 h-5" /> Strong Shots
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent className="pt-6">
-                      <ul className="space-y-4">
-                        {analysis?.player_2?.strong_shots?.map((shot, i) => (
-                          <li key={i} className="flex gap-3 text-sm" data-testid={`text-player2-strength-${i}`}>
-                            <div className="w-1.5 h-1.5 rounded-full bg-[#22c55e] mt-1.5 shrink-0" />
-                            <span className="text-gray-300">{shot}</span>
-                          </li>
-                        )) || <li className="text-gray-500">No data available</li>}
-                      </ul>
-                    </CardContent>
-                  </Card>
+              {/* Players Grid */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                {/* Player 1 */}
+                <motion.section variants={itemVariants} className="space-y-6">
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-[#d4ff00] to-[#84cea6] flex items-center justify-center shadow-lg shadow-[#d4ff00]/10">
+                      <User className="w-6 h-6 text-black" />
+                    </div>
+                    <div>
+                      <h2 className="text-xl font-bold">Player 1</h2>
+                      <p className="text-xs text-gray-500 tracking-wide">PERFORMANCE METRICS</p>
+                    </div>
+                  </div>
 
-                  <Card className="bg-[#141820] border-[#1e2430] rounded-3xl">
-                    <CardHeader className="border-b border-[#1e2430] pb-4">
-                      <CardTitle className="text-xl font-bold flex items-center gap-2 text-[#f97316]">
-                        <Wrench className="w-5 h-5" /> Weak Shots
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent className="pt-6">
-                      <ul className="space-y-4">
-                        {analysis?.player_2?.weak_shots?.map((shot, i) => (
-                          <li key={i} className="flex gap-3 text-sm" data-testid={`text-player2-weakness-${i}`}>
-                            <div className="w-1.5 h-1.5 rounded-full bg-[#f97316] mt-1.5 shrink-0" />
-                            <span className="text-gray-300">{shot}</span>
-                          </li>
-                        )) || <li className="text-gray-500">No data available</li>}
-                      </ul>
-                    </CardContent>
-                  </Card>
-
-                  <Card className="bg-[#141820] border-[#1e2430] rounded-3xl">
-                    <CardHeader className="border-b border-[#1e2430] pb-4">
-                      <CardTitle className="text-xl font-bold flex items-center gap-2 text-[#3b82f6]">
-                        <Footprints className="w-5 h-5" /> Footwork
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent className="pt-6">
-                      <div className="bg-[#0a0c10] border border-[#1e2430] rounded-2xl p-4 text-sm text-gray-300" data-testid="text-player2-footwork">
-                        {analysis?.player_2?.footwork || "No footwork analysis available"}
+                  <div className="space-y-4">
+                    {/* Strong Shots */}
+                    <div className="bg-[#141820] border border-[#1e2430] rounded-2xl overflow-hidden">
+                      <div className="px-5 py-4 border-b border-[#1e2430] flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-lg bg-emerald-500/10 flex items-center justify-center">
+                          <Zap className="w-4 h-4 text-emerald-400" />
+                        </div>
+                        <div>
+                          <h3 className="font-semibold text-emerald-400">Strong Shots</h3>
+                          <p className="text-[10px] text-gray-500 tracking-wide">KEY STRENGTHS</p>
+                        </div>
+                        <div className="ml-auto">
+                          <TrendingUp className="w-4 h-4 text-emerald-500/50" />
+                        </div>
                       </div>
-                    </CardContent>
-                  </Card>
-
-                  <Card className="bg-[#141820] border-[#1e2430] rounded-3xl">
-                    <CardHeader className="border-b border-[#1e2430] pb-4">
-                      <CardTitle className="text-xl font-bold flex items-center gap-2 text-[#8b5cf6]">
-                        <Target className="w-5 h-5" /> Shot Tendencies
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent className="pt-6">
-                      <div className="bg-[#0a0c10] border border-[#1e2430] rounded-2xl p-4 text-sm text-gray-300" data-testid="text-player2-tendencies">
-                        {analysis?.player_2?.shot_tendencies || "No shot tendency analysis available"}
+                      <div className="p-5">
+                        <ul className="space-y-3">
+                          {analysis?.player_1?.strong_shots?.map((shot, i) => (
+                            <li key={i} className="flex gap-3 text-sm group" data-testid={`text-player1-strength-${i}`}>
+                              <div className="w-6 h-6 rounded-lg bg-emerald-500/10 flex items-center justify-center shrink-0 group-hover:bg-emerald-500/20 transition-colors">
+                                <Sparkles className="w-3 h-3 text-emerald-400" />
+                              </div>
+                              <span className="text-gray-300 leading-relaxed">{shot}</span>
+                            </li>
+                          )) || <li className="text-gray-500 italic">No data available</li>}
+                        </ul>
                       </div>
-                    </CardContent>
-                  </Card>
-                </div>
+                    </div>
+
+                    {/* Weak Shots */}
+                    <div className="bg-[#141820] border border-[#1e2430] rounded-2xl overflow-hidden">
+                      <div className="px-5 py-4 border-b border-[#1e2430] flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-lg bg-orange-500/10 flex items-center justify-center">
+                          <Wrench className="w-4 h-4 text-orange-400" />
+                        </div>
+                        <div>
+                          <h3 className="font-semibold text-orange-400">Areas to Improve</h3>
+                          <p className="text-[10px] text-gray-500 tracking-wide">DEVELOPMENT FOCUS</p>
+                        </div>
+                        <div className="ml-auto">
+                          <BarChart3 className="w-4 h-4 text-orange-500/50" />
+                        </div>
+                      </div>
+                      <div className="p-5">
+                        <ul className="space-y-3">
+                          {analysis?.player_1?.weak_shots?.map((shot, i) => (
+                            <li key={i} className="flex gap-3 text-sm group" data-testid={`text-player1-weakness-${i}`}>
+                              <div className="w-6 h-6 rounded-lg bg-orange-500/10 flex items-center justify-center shrink-0 group-hover:bg-orange-500/20 transition-colors">
+                                <Target className="w-3 h-3 text-orange-400" />
+                              </div>
+                              <span className="text-gray-300 leading-relaxed">{shot}</span>
+                            </li>
+                          )) || <li className="text-gray-500 italic">No data available</li>}
+                        </ul>
+                      </div>
+                    </div>
+
+                    {/* Footwork */}
+                    <div className="bg-[#141820] border border-[#1e2430] rounded-2xl overflow-hidden">
+                      <div className="px-5 py-4 border-b border-[#1e2430] flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-lg bg-blue-500/10 flex items-center justify-center">
+                          <Footprints className="w-4 h-4 text-blue-400" />
+                        </div>
+                        <div>
+                          <h3 className="font-semibold text-blue-400">Footwork Analysis</h3>
+                          <p className="text-[10px] text-gray-500 tracking-wide">MOVEMENT PATTERNS</p>
+                        </div>
+                      </div>
+                      <div className="p-5">
+                        <p className="text-gray-300 text-sm leading-relaxed" data-testid="text-player1-footwork">
+                          {analysis?.player_1?.footwork || "No footwork analysis available"}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Shot Tendencies */}
+                    <div className="bg-[#141820] border border-[#1e2430] rounded-2xl overflow-hidden">
+                      <div className="px-5 py-4 border-b border-[#1e2430] flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-lg bg-purple-500/10 flex items-center justify-center">
+                          <Activity className="w-4 h-4 text-purple-400" />
+                        </div>
+                        <div>
+                          <h3 className="font-semibold text-purple-400">Shot Tendencies</h3>
+                          <p className="text-[10px] text-gray-500 tracking-wide">TACTICAL PATTERNS</p>
+                        </div>
+                      </div>
+                      <div className="p-5">
+                        <p className="text-gray-300 text-sm leading-relaxed" data-testid="text-player1-tendencies">
+                          {analysis?.player_1?.shot_tendencies || "No shot tendency analysis available"}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </motion.section>
+
+                {/* Player 2 */}
+                <motion.section variants={itemVariants} className="space-y-6">
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-[#3b82f6] to-[#8b5cf6] flex items-center justify-center shadow-lg shadow-[#3b82f6]/10">
+                      <User className="w-6 h-6 text-white" />
+                    </div>
+                    <div>
+                      <h2 className="text-xl font-bold">Player 2</h2>
+                      <p className="text-xs text-gray-500 tracking-wide">PERFORMANCE METRICS</p>
+                    </div>
+                  </div>
+
+                  <div className="space-y-4">
+                    {/* Strong Shots */}
+                    <div className="bg-[#141820] border border-[#1e2430] rounded-2xl overflow-hidden">
+                      <div className="px-5 py-4 border-b border-[#1e2430] flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-lg bg-emerald-500/10 flex items-center justify-center">
+                          <Zap className="w-4 h-4 text-emerald-400" />
+                        </div>
+                        <div>
+                          <h3 className="font-semibold text-emerald-400">Strong Shots</h3>
+                          <p className="text-[10px] text-gray-500 tracking-wide">KEY STRENGTHS</p>
+                        </div>
+                        <div className="ml-auto">
+                          <TrendingUp className="w-4 h-4 text-emerald-500/50" />
+                        </div>
+                      </div>
+                      <div className="p-5">
+                        <ul className="space-y-3">
+                          {analysis?.player_2?.strong_shots?.map((shot, i) => (
+                            <li key={i} className="flex gap-3 text-sm group" data-testid={`text-player2-strength-${i}`}>
+                              <div className="w-6 h-6 rounded-lg bg-emerald-500/10 flex items-center justify-center shrink-0 group-hover:bg-emerald-500/20 transition-colors">
+                                <Sparkles className="w-3 h-3 text-emerald-400" />
+                              </div>
+                              <span className="text-gray-300 leading-relaxed">{shot}</span>
+                            </li>
+                          )) || <li className="text-gray-500 italic">No data available</li>}
+                        </ul>
+                      </div>
+                    </div>
+
+                    {/* Weak Shots */}
+                    <div className="bg-[#141820] border border-[#1e2430] rounded-2xl overflow-hidden">
+                      <div className="px-5 py-4 border-b border-[#1e2430] flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-lg bg-orange-500/10 flex items-center justify-center">
+                          <Wrench className="w-4 h-4 text-orange-400" />
+                        </div>
+                        <div>
+                          <h3 className="font-semibold text-orange-400">Areas to Improve</h3>
+                          <p className="text-[10px] text-gray-500 tracking-wide">DEVELOPMENT FOCUS</p>
+                        </div>
+                        <div className="ml-auto">
+                          <BarChart3 className="w-4 h-4 text-orange-500/50" />
+                        </div>
+                      </div>
+                      <div className="p-5">
+                        <ul className="space-y-3">
+                          {analysis?.player_2?.weak_shots?.map((shot, i) => (
+                            <li key={i} className="flex gap-3 text-sm group" data-testid={`text-player2-weakness-${i}`}>
+                              <div className="w-6 h-6 rounded-lg bg-orange-500/10 flex items-center justify-center shrink-0 group-hover:bg-orange-500/20 transition-colors">
+                                <Target className="w-3 h-3 text-orange-400" />
+                              </div>
+                              <span className="text-gray-300 leading-relaxed">{shot}</span>
+                            </li>
+                          )) || <li className="text-gray-500 italic">No data available</li>}
+                        </ul>
+                      </div>
+                    </div>
+
+                    {/* Footwork */}
+                    <div className="bg-[#141820] border border-[#1e2430] rounded-2xl overflow-hidden">
+                      <div className="px-5 py-4 border-b border-[#1e2430] flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-lg bg-blue-500/10 flex items-center justify-center">
+                          <Footprints className="w-4 h-4 text-blue-400" />
+                        </div>
+                        <div>
+                          <h3 className="font-semibold text-blue-400">Footwork Analysis</h3>
+                          <p className="text-[10px] text-gray-500 tracking-wide">MOVEMENT PATTERNS</p>
+                        </div>
+                      </div>
+                      <div className="p-5">
+                        <p className="text-gray-300 text-sm leading-relaxed" data-testid="text-player2-footwork">
+                          {analysis?.player_2?.footwork || "No footwork analysis available"}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Shot Tendencies */}
+                    <div className="bg-[#141820] border border-[#1e2430] rounded-2xl overflow-hidden">
+                      <div className="px-5 py-4 border-b border-[#1e2430] flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-lg bg-purple-500/10 flex items-center justify-center">
+                          <Activity className="w-4 h-4 text-purple-400" />
+                        </div>
+                        <div>
+                          <h3 className="font-semibold text-purple-400">Shot Tendencies</h3>
+                          <p className="text-[10px] text-gray-500 tracking-wide">TACTICAL PATTERNS</p>
+                        </div>
+                      </div>
+                      <div className="p-5">
+                        <p className="text-gray-300 text-sm leading-relaxed" data-testid="text-player2-tendencies">
+                          {analysis?.player_2?.shot_tendencies || "No shot tendency analysis available"}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </motion.section>
               </div>
+
+              {/* Footer CTA */}
+              <motion.div variants={itemVariants} className="pt-8">
+                <div className="bg-gradient-to-r from-[#141820] to-[#1a1f2e] border border-[#1e2430] rounded-2xl p-6 flex flex-col md:flex-row items-center justify-between gap-4">
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 rounded-xl bg-[#d4ff00]/10 flex items-center justify-center">
+                      <FileText className="w-6 h-6 text-[#d4ff00]" />
+                    </div>
+                    <div>
+                      <h3 className="font-bold">Ready for another analysis?</h3>
+                      <p className="text-sm text-gray-500">Upload a new video to get detailed coaching insights</p>
+                    </div>
+                  </div>
+                  <Link href="/upload">
+                    <button className="px-6 py-3 bg-[#d4ff00] hover:bg-[#c4ef00] text-black font-bold rounded-xl transition-all duration-300 hover:shadow-lg hover:shadow-[#d4ff00]/20" data-testid="button-new-analysis">
+                      New Analysis
+                    </button>
+                  </Link>
+                </div>
+              </motion.div>
             </motion.div>
           )}
         </AnimatePresence>
