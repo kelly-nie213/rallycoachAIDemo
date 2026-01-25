@@ -125,48 +125,69 @@ export default function ResultPage() {
                 
                 <div className="flex items-center justify-between mb-12 relative">
                   {/* Background track - thicker */}
-                  <div className="absolute top-1/2 left-0 w-full h-2 bg-[#1e2430] -translate-y-1/2 rounded-full" />
+                  <div className="absolute top-1/2 left-0 w-full h-3 bg-[#1e2430] -translate-y-1/2 rounded-full overflow-hidden">
+                    {/* Flashing stripe animation inside track */}
+                    {video.status === "processing" && (
+                      <motion.div
+                        className="absolute inset-0 bg-gradient-to-r from-transparent via-[#d4ff00]/20 to-transparent"
+                        animate={{ x: ["-100%", "200%"] }}
+                        transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                      />
+                    )}
+                  </div>
                   
                   {/* FLASHING progress bar - only during processing */}
                   {video.status === "processing" && (
                     <>
-                      {/* Main animated bar - thick and bright */}
+                      {/* Pulsing glow behind bar */}
                       <motion.div 
-                        className="absolute top-1/2 left-[8%] h-3 bg-[#d4ff00] -translate-y-1/2 rounded-full z-[5]"
-                        style={{ boxShadow: "0 0 20px #d4ff00, 0 0 40px #d4ff00" }}
+                        className="absolute top-1/2 left-[8%] w-[45%] h-8 -translate-y-1/2 rounded-full bg-[#d4ff00] blur-xl z-[3]"
                         animate={{ 
-                          width: ["10%", "35%", "20%", "40%", "25%"],
-                          opacity: [1, 0.5, 1, 0.6, 1]
+                          opacity: [0.2, 0.6, 0.2],
+                          scale: [1, 1.1, 1]
                         }}
-                        transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
+                        transition={{ duration: 0.4, repeat: Infinity }}
                       />
                       
-                      {/* Fast moving dot */}
+                      {/* Main animated bar - FLASHING */}
                       <motion.div 
-                        className="absolute top-1/2 -translate-y-1/2 w-4 h-4 rounded-full bg-white z-[6]"
-                        style={{ boxShadow: "0 0 15px #d4ff00, 0 0 30px #84cea6" }}
+                        className="absolute top-1/2 left-[8%] h-4 bg-gradient-to-r from-[#d4ff00] via-[#84cea6] to-[#d4ff00] -translate-y-1/2 rounded-full z-[5]"
+                        style={{ boxShadow: "0 0 30px #d4ff00, 0 0 60px #d4ff00" }}
                         animate={{ 
-                          left: ["8%", "48%"],
-                          scale: [1, 1.3, 1]
+                          width: ["15%", "40%", "25%", "45%", "30%", "15%"],
+                          opacity: [1, 0.4, 1, 0.3, 1, 0.5]
                         }}
-                        transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                        transition={{ duration: 0.8, repeat: Infinity, ease: "easeInOut" }}
+                      />
+                      
+                      {/* Fast strobing white flash */}
+                      <motion.div 
+                        className="absolute top-1/2 left-[8%] w-[45%] h-4 -translate-y-1/2 rounded-full bg-white z-[6]"
+                        animate={{ 
+                          opacity: [0, 0.8, 0, 0.6, 0]
+                        }}
+                        transition={{ duration: 0.3, repeat: Infinity }}
+                      />
+                      
+                      {/* Moving bright dot */}
+                      <motion.div 
+                        className="absolute top-1/2 -translate-y-1/2 w-5 h-5 rounded-full bg-white z-[7]"
+                        style={{ boxShadow: "0 0 20px #fff, 0 0 40px #d4ff00, 0 0 60px #84cea6" }}
+                        animate={{ 
+                          left: ["8%", "50%", "8%"],
+                          scale: [1, 1.5, 1]
+                        }}
+                        transition={{ duration: 0.6, repeat: Infinity, ease: "easeInOut" }}
                       />
                       
                       {/* Second trailing dot */}
                       <motion.div 
-                        className="absolute top-1/2 -translate-y-1/2 w-3 h-3 rounded-full bg-[#84cea6] z-[6]"
-                        style={{ boxShadow: "0 0 10px #84cea6" }}
+                        className="absolute top-1/2 -translate-y-1/2 w-4 h-4 rounded-full bg-[#84cea6] z-[6]"
+                        style={{ boxShadow: "0 0 15px #84cea6" }}
                         animate={{ 
-                          left: ["5%", "42%"],
+                          left: ["5%", "45%", "5%"],
                         }}
-                        transition={{ duration: 1, repeat: Infinity, ease: "linear", delay: 0.2 }}
-                      />
-                      
-                      {/* Pulsing glow effect on track */}
-                      <motion.div 
-                        className="absolute top-1/2 left-[8%] w-[40%] h-4 -translate-y-1/2 rounded-full bg-[#d4ff00]/30 blur-sm z-[4]"
-                        animate={{ opacity: [0.3, 0.8, 0.3] }}
-                        transition={{ duration: 0.5, repeat: Infinity }}
+                        transition={{ duration: 0.6, repeat: Infinity, ease: "easeInOut", delay: 0.1 }}
                       />
                     </>
                   )}
