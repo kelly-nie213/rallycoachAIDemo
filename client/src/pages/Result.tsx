@@ -22,17 +22,22 @@ import {
 import { Navbar } from "@/components/Navbar";
 import type { Video } from "@shared/schema";
 
-interface PlayerAnalysis {
-  strong_shots: string[];
-  weak_shots: string[];
-  footwork: string;
-  shot_tendencies: string;
+interface DrillPlan {
+  title: string;
+  description: string;
+}
+
+interface DNAData {
+  technical: number;
+  tactical: number;
+  summary: string;
 }
 
 interface AnalysisData {
-  player_1: PlayerAnalysis;
-  player_2: PlayerAnalysis;
-  overall_match_summary: string;
+  dna: DNAData;
+  strengths: string[];
+  fixes: string[];
+  plan: DrillPlan[];
 }
 
 export default function ResultPage() {
@@ -119,40 +124,52 @@ export default function ResultPage() {
                 />
                 
                 <div className="flex items-center justify-between mb-12 relative">
-                  {/* Background track */}
-                  <div className="absolute top-1/2 left-0 w-full h-1 bg-[#1e2430] -translate-y-1/2 rounded-full" />
+                  {/* Background track - thicker */}
+                  <div className="absolute top-1/2 left-0 w-full h-2 bg-[#1e2430] -translate-y-1/2 rounded-full" />
                   
-                  {/* Animated progress bar with shimmer */}
-                  <div className="absolute top-1/2 left-0 w-1/2 h-1 -translate-y-1/2 rounded-full overflow-hidden">
-                    <motion.div 
-                      className="h-full w-full bg-gradient-to-r from-[#d4ff00] via-[#84cea6] to-[#d4ff00]"
-                      animate={{ opacity: [0.6, 1, 0.6] }}
-                      transition={{ duration: 1, repeat: Infinity }}
-                    />
-                    {/* Shimmer effect */}
-                    <motion.div 
-                      className="absolute top-0 left-0 h-full w-8 bg-gradient-to-r from-transparent via-white/40 to-transparent"
-                      animate={{ x: [-32, 300] }}
-                      transition={{ duration: 1.5, repeat: Infinity, ease: "linear" }}
-                    />
-                  </div>
-                  
-                  {/* Moving dots on the progress line */}
-                  <motion.div 
-                    className="absolute top-1/2 -translate-y-1/2 w-3 h-3 rounded-full bg-[#d4ff00] shadow-lg shadow-[#d4ff00]/50"
-                    animate={{ 
-                      left: ["10%", "45%", "10%"],
-                      scale: [1, 1.2, 1]
-                    }}
-                    transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
-                  />
-                  <motion.div 
-                    className="absolute top-1/2 -translate-y-1/2 w-2 h-2 rounded-full bg-[#84cea6] shadow-lg shadow-[#84cea6]/50"
-                    animate={{ 
-                      left: ["5%", "40%", "5%"],
-                    }}
-                    transition={{ duration: 2, repeat: Infinity, ease: "easeInOut", delay: 0.3 }}
-                  />
+                  {/* FLASHING progress bar - only during processing */}
+                  {video.status === "processing" && (
+                    <>
+                      {/* Main animated bar - thick and bright */}
+                      <motion.div 
+                        className="absolute top-1/2 left-[8%] h-3 bg-[#d4ff00] -translate-y-1/2 rounded-full z-[5]"
+                        style={{ boxShadow: "0 0 20px #d4ff00, 0 0 40px #d4ff00" }}
+                        animate={{ 
+                          width: ["10%", "35%", "20%", "40%", "25%"],
+                          opacity: [1, 0.5, 1, 0.6, 1]
+                        }}
+                        transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
+                      />
+                      
+                      {/* Fast moving dot */}
+                      <motion.div 
+                        className="absolute top-1/2 -translate-y-1/2 w-4 h-4 rounded-full bg-white z-[6]"
+                        style={{ boxShadow: "0 0 15px #d4ff00, 0 0 30px #84cea6" }}
+                        animate={{ 
+                          left: ["8%", "48%"],
+                          scale: [1, 1.3, 1]
+                        }}
+                        transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                      />
+                      
+                      {/* Second trailing dot */}
+                      <motion.div 
+                        className="absolute top-1/2 -translate-y-1/2 w-3 h-3 rounded-full bg-[#84cea6] z-[6]"
+                        style={{ boxShadow: "0 0 10px #84cea6" }}
+                        animate={{ 
+                          left: ["5%", "42%"],
+                        }}
+                        transition={{ duration: 1, repeat: Infinity, ease: "linear", delay: 0.2 }}
+                      />
+                      
+                      {/* Pulsing glow effect on track */}
+                      <motion.div 
+                        className="absolute top-1/2 left-[8%] w-[40%] h-4 -translate-y-1/2 rounded-full bg-[#d4ff00]/30 blur-sm z-[4]"
+                        animate={{ opacity: [0.3, 0.8, 0.3] }}
+                        transition={{ duration: 0.5, repeat: Infinity }}
+                      />
+                    </>
+                  )}
                   
                   <div className="relative z-10 flex flex-col items-center gap-2">
                     <div className="w-12 h-12 rounded-2xl bg-[#d4ff00] flex items-center justify-center text-black shadow-lg shadow-[#d4ff00]/20">
@@ -256,21 +273,50 @@ export default function ResultPage() {
               animate="visible"
               className="space-y-8"
             >
-              {/* Match Summary Section */}
+              {/* Performance DNA Section */}
               <motion.section variants={itemVariants}>
                 <div className="flex items-center gap-3 mb-4">
                   <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#d4ff00] to-[#84cea6] flex items-center justify-center">
-                    <Trophy className="w-5 h-5 text-black" />
+                    <Dna className="w-5 h-5 text-black" />
                   </div>
                   <div>
-                    <h2 className="text-xl font-bold">Match Summary</h2>
-                    <p className="text-xs text-gray-500 tracking-wide">EXECUTIVE OVERVIEW</p>
+                    <h2 className="text-xl font-bold">Performance DNA</h2>
+                    <p className="text-xs text-gray-500 tracking-wide">BIOMECHANICAL ANALYSIS</p>
                   </div>
                 </div>
                 <div className="bg-[#141820] border border-[#1e2430] rounded-2xl p-6 relative overflow-hidden">
                   <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-[#d4ff00] via-[#84cea6] to-[#3b82f6]" />
+                  
+                  {/* Score Bars */}
+                  <div className="grid grid-cols-2 gap-6 mb-6">
+                    <div>
+                      <div className="flex justify-between mb-2">
+                        <span className="text-sm text-gray-400">Technical Score</span>
+                        <span className="text-sm font-bold text-[#d4ff00]">{analysis?.dna?.technical || 0}%</span>
+                      </div>
+                      <div className="h-2 bg-[#1e2430] rounded-full overflow-hidden">
+                        <div 
+                          className="h-full bg-gradient-to-r from-[#d4ff00] to-[#84cea6] rounded-full transition-all duration-1000"
+                          style={{ width: `${analysis?.dna?.technical || 0}%` }}
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <div className="flex justify-between mb-2">
+                        <span className="text-sm text-gray-400">Tactical Score</span>
+                        <span className="text-sm font-bold text-[#84cea6]">{analysis?.dna?.tactical || 0}%</span>
+                      </div>
+                      <div className="h-2 bg-[#1e2430] rounded-full overflow-hidden">
+                        <div 
+                          className="h-full bg-gradient-to-r from-[#84cea6] to-[#3b82f6] rounded-full transition-all duration-1000"
+                          style={{ width: `${analysis?.dna?.tactical || 0}%` }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                  
                   <p className="text-gray-300 leading-relaxed text-[15px]" data-testid="text-match-summary">
-                    {analysis?.overall_match_summary || "No summary available"}
+                    {analysis?.dna?.summary || "No summary available"}
                   </p>
                 </div>
               </motion.section>
@@ -278,226 +324,112 @@ export default function ResultPage() {
               {/* Divider */}
               <div className="flex items-center gap-4 py-2">
                 <div className="flex-1 h-px bg-gradient-to-r from-transparent via-[#1e2430] to-transparent" />
-                <span className="text-[10px] font-bold tracking-widest text-gray-600">PLAYER ANALYSIS</span>
+                <span className="text-[10px] font-bold tracking-widest text-gray-600">DETAILED ANALYSIS</span>
                 <div className="flex-1 h-px bg-gradient-to-r from-transparent via-[#1e2430] to-transparent" />
               </div>
 
-              {/* Players Grid */}
+              {/* Strengths and Fixes Grid */}
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                {/* Player 1 */}
+                {/* Strengths */}
                 <motion.section variants={itemVariants} className="space-y-6">
                   <div className="flex items-center gap-3">
-                    <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-[#d4ff00] to-[#84cea6] flex items-center justify-center shadow-lg shadow-[#d4ff00]/10">
-                      <User className="w-6 h-6 text-black" />
+                    <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-emerald-500 to-emerald-600 flex items-center justify-center shadow-lg shadow-emerald-500/10">
+                      <Zap className="w-6 h-6 text-white" />
                     </div>
                     <div>
-                      <h2 className="text-xl font-bold">Player 1</h2>
-                      <p className="text-xs text-gray-500 tracking-wide">PERFORMANCE METRICS</p>
+                      <h2 className="text-xl font-bold">Key Strengths</h2>
+                      <p className="text-xs text-gray-500 tracking-wide">WHAT YOU'RE DOING WELL</p>
                     </div>
                   </div>
 
-                  <div className="space-y-4">
-                    {/* Strong Shots */}
-                    <div className="bg-[#141820] border border-[#1e2430] rounded-2xl overflow-hidden">
-                      <div className="px-5 py-4 border-b border-[#1e2430] flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-lg bg-emerald-500/10 flex items-center justify-center">
-                          <Zap className="w-4 h-4 text-emerald-400" />
-                        </div>
-                        <div>
-                          <h3 className="font-semibold text-emerald-400">Strong Shots</h3>
-                          <p className="text-[10px] text-gray-500 tracking-wide">KEY STRENGTHS</p>
-                        </div>
-                        <div className="ml-auto">
-                          <TrendingUp className="w-4 h-4 text-emerald-500/50" />
-                        </div>
+                  <div className="bg-[#141820] border border-[#1e2430] rounded-2xl overflow-hidden">
+                    <div className="px-5 py-4 border-b border-[#1e2430] flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-lg bg-emerald-500/10 flex items-center justify-center">
+                        <TrendingUp className="w-4 h-4 text-emerald-400" />
                       </div>
-                      <div className="p-5">
-                        <ul className="space-y-3">
-                          {analysis?.player_1?.strong_shots?.map((shot, i) => (
-                            <li key={i} className="flex gap-3 text-sm group" data-testid={`text-player1-strength-${i}`}>
-                              <div className="w-6 h-6 rounded-lg bg-emerald-500/10 flex items-center justify-center shrink-0 group-hover:bg-emerald-500/20 transition-colors">
-                                <Sparkles className="w-3 h-3 text-emerald-400" />
-                              </div>
-                              <span className="text-gray-300 leading-relaxed">{shot}</span>
-                            </li>
-                          )) || <li className="text-gray-500 italic">No data available</li>}
-                        </ul>
+                      <div>
+                        <h3 className="font-semibold text-emerald-400">Positive Performance Areas</h3>
+                        <p className="text-[10px] text-gray-500 tracking-wide">BUILD ON THESE</p>
                       </div>
                     </div>
-
-                    {/* Weak Shots */}
-                    <div className="bg-[#141820] border border-[#1e2430] rounded-2xl overflow-hidden">
-                      <div className="px-5 py-4 border-b border-[#1e2430] flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-lg bg-orange-500/10 flex items-center justify-center">
-                          <Wrench className="w-4 h-4 text-orange-400" />
-                        </div>
-                        <div>
-                          <h3 className="font-semibold text-orange-400">Areas to Improve</h3>
-                          <p className="text-[10px] text-gray-500 tracking-wide">DEVELOPMENT FOCUS</p>
-                        </div>
-                        <div className="ml-auto">
-                          <BarChart3 className="w-4 h-4 text-orange-500/50" />
-                        </div>
-                      </div>
-                      <div className="p-5">
-                        <ul className="space-y-3">
-                          {analysis?.player_1?.weak_shots?.map((shot, i) => (
-                            <li key={i} className="flex gap-3 text-sm group" data-testid={`text-player1-weakness-${i}`}>
-                              <div className="w-6 h-6 rounded-lg bg-orange-500/10 flex items-center justify-center shrink-0 group-hover:bg-orange-500/20 transition-colors">
-                                <Target className="w-3 h-3 text-orange-400" />
-                              </div>
-                              <span className="text-gray-300 leading-relaxed">{shot}</span>
-                            </li>
-                          )) || <li className="text-gray-500 italic">No data available</li>}
-                        </ul>
-                      </div>
-                    </div>
-
-                    {/* Footwork */}
-                    <div className="bg-[#141820] border border-[#1e2430] rounded-2xl overflow-hidden">
-                      <div className="px-5 py-4 border-b border-[#1e2430] flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-lg bg-blue-500/10 flex items-center justify-center">
-                          <Footprints className="w-4 h-4 text-blue-400" />
-                        </div>
-                        <div>
-                          <h3 className="font-semibold text-blue-400">Footwork Analysis</h3>
-                          <p className="text-[10px] text-gray-500 tracking-wide">MOVEMENT PATTERNS</p>
-                        </div>
-                      </div>
-                      <div className="p-5">
-                        <p className="text-gray-300 text-sm leading-relaxed" data-testid="text-player1-footwork">
-                          {analysis?.player_1?.footwork || "No footwork analysis available"}
-                        </p>
-                      </div>
-                    </div>
-
-                    {/* Shot Tendencies */}
-                    <div className="bg-[#141820] border border-[#1e2430] rounded-2xl overflow-hidden">
-                      <div className="px-5 py-4 border-b border-[#1e2430] flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-lg bg-purple-500/10 flex items-center justify-center">
-                          <Activity className="w-4 h-4 text-purple-400" />
-                        </div>
-                        <div>
-                          <h3 className="font-semibold text-purple-400">Shot Tendencies</h3>
-                          <p className="text-[10px] text-gray-500 tracking-wide">TACTICAL PATTERNS</p>
-                        </div>
-                      </div>
-                      <div className="p-5">
-                        <p className="text-gray-300 text-sm leading-relaxed" data-testid="text-player1-tendencies">
-                          {analysis?.player_1?.shot_tendencies || "No shot tendency analysis available"}
-                        </p>
-                      </div>
+                    <div className="p-5">
+                      <ul className="space-y-3">
+                        {analysis?.strengths?.map((strength, i) => (
+                          <li key={i} className="flex gap-3 text-sm group" data-testid={`text-strength-${i}`}>
+                            <div className="w-6 h-6 rounded-lg bg-emerald-500/10 flex items-center justify-center shrink-0 group-hover:bg-emerald-500/20 transition-colors">
+                              <Sparkles className="w-3 h-3 text-emerald-400" />
+                            </div>
+                            <span className="text-gray-300 leading-relaxed">{strength}</span>
+                          </li>
+                        )) || <li className="text-gray-500 italic">No data available</li>}
+                      </ul>
                     </div>
                   </div>
                 </motion.section>
 
-                {/* Player 2 */}
+                {/* Areas to Improve */}
                 <motion.section variants={itemVariants} className="space-y-6">
                   <div className="flex items-center gap-3">
-                    <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-[#3b82f6] to-[#8b5cf6] flex items-center justify-center shadow-lg shadow-[#3b82f6]/10">
-                      <User className="w-6 h-6 text-white" />
+                    <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-orange-500 to-orange-600 flex items-center justify-center shadow-lg shadow-orange-500/10">
+                      <Wrench className="w-6 h-6 text-white" />
                     </div>
                     <div>
-                      <h2 className="text-xl font-bold">Player 2</h2>
-                      <p className="text-xs text-gray-500 tracking-wide">PERFORMANCE METRICS</p>
+                      <h2 className="text-xl font-bold">Areas to Improve</h2>
+                      <p className="text-xs text-gray-500 tracking-wide">FOCUS ON THESE</p>
                     </div>
                   </div>
 
-                  <div className="space-y-4">
-                    {/* Strong Shots */}
-                    <div className="bg-[#141820] border border-[#1e2430] rounded-2xl overflow-hidden">
-                      <div className="px-5 py-4 border-b border-[#1e2430] flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-lg bg-emerald-500/10 flex items-center justify-center">
-                          <Zap className="w-4 h-4 text-emerald-400" />
-                        </div>
-                        <div>
-                          <h3 className="font-semibold text-emerald-400">Strong Shots</h3>
-                          <p className="text-[10px] text-gray-500 tracking-wide">KEY STRENGTHS</p>
-                        </div>
-                        <div className="ml-auto">
-                          <TrendingUp className="w-4 h-4 text-emerald-500/50" />
-                        </div>
+                  <div className="bg-[#141820] border border-[#1e2430] rounded-2xl overflow-hidden">
+                    <div className="px-5 py-4 border-b border-[#1e2430] flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-lg bg-orange-500/10 flex items-center justify-center">
+                        <Target className="w-4 h-4 text-orange-400" />
                       </div>
-                      <div className="p-5">
-                        <ul className="space-y-3">
-                          {analysis?.player_2?.strong_shots?.map((shot, i) => (
-                            <li key={i} className="flex gap-3 text-sm group" data-testid={`text-player2-strength-${i}`}>
-                              <div className="w-6 h-6 rounded-lg bg-emerald-500/10 flex items-center justify-center shrink-0 group-hover:bg-emerald-500/20 transition-colors">
-                                <Sparkles className="w-3 h-3 text-emerald-400" />
-                              </div>
-                              <span className="text-gray-300 leading-relaxed">{shot}</span>
-                            </li>
-                          )) || <li className="text-gray-500 italic">No data available</li>}
-                        </ul>
+                      <div>
+                        <h3 className="font-semibold text-orange-400">Development Focus</h3>
+                        <p className="text-[10px] text-gray-500 tracking-wide">PRIORITY FIXES</p>
                       </div>
                     </div>
-
-                    {/* Weak Shots */}
-                    <div className="bg-[#141820] border border-[#1e2430] rounded-2xl overflow-hidden">
-                      <div className="px-5 py-4 border-b border-[#1e2430] flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-lg bg-orange-500/10 flex items-center justify-center">
-                          <Wrench className="w-4 h-4 text-orange-400" />
-                        </div>
-                        <div>
-                          <h3 className="font-semibold text-orange-400">Areas to Improve</h3>
-                          <p className="text-[10px] text-gray-500 tracking-wide">DEVELOPMENT FOCUS</p>
-                        </div>
-                        <div className="ml-auto">
-                          <BarChart3 className="w-4 h-4 text-orange-500/50" />
-                        </div>
-                      </div>
-                      <div className="p-5">
-                        <ul className="space-y-3">
-                          {analysis?.player_2?.weak_shots?.map((shot, i) => (
-                            <li key={i} className="flex gap-3 text-sm group" data-testid={`text-player2-weakness-${i}`}>
-                              <div className="w-6 h-6 rounded-lg bg-orange-500/10 flex items-center justify-center shrink-0 group-hover:bg-orange-500/20 transition-colors">
-                                <Target className="w-3 h-3 text-orange-400" />
-                              </div>
-                              <span className="text-gray-300 leading-relaxed">{shot}</span>
-                            </li>
-                          )) || <li className="text-gray-500 italic">No data available</li>}
-                        </ul>
-                      </div>
-                    </div>
-
-                    {/* Footwork */}
-                    <div className="bg-[#141820] border border-[#1e2430] rounded-2xl overflow-hidden">
-                      <div className="px-5 py-4 border-b border-[#1e2430] flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-lg bg-blue-500/10 flex items-center justify-center">
-                          <Footprints className="w-4 h-4 text-blue-400" />
-                        </div>
-                        <div>
-                          <h3 className="font-semibold text-blue-400">Footwork Analysis</h3>
-                          <p className="text-[10px] text-gray-500 tracking-wide">MOVEMENT PATTERNS</p>
-                        </div>
-                      </div>
-                      <div className="p-5">
-                        <p className="text-gray-300 text-sm leading-relaxed" data-testid="text-player2-footwork">
-                          {analysis?.player_2?.footwork || "No footwork analysis available"}
-                        </p>
-                      </div>
-                    </div>
-
-                    {/* Shot Tendencies */}
-                    <div className="bg-[#141820] border border-[#1e2430] rounded-2xl overflow-hidden">
-                      <div className="px-5 py-4 border-b border-[#1e2430] flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-lg bg-purple-500/10 flex items-center justify-center">
-                          <Activity className="w-4 h-4 text-purple-400" />
-                        </div>
-                        <div>
-                          <h3 className="font-semibold text-purple-400">Shot Tendencies</h3>
-                          <p className="text-[10px] text-gray-500 tracking-wide">TACTICAL PATTERNS</p>
-                        </div>
-                      </div>
-                      <div className="p-5">
-                        <p className="text-gray-300 text-sm leading-relaxed" data-testid="text-player2-tendencies">
-                          {analysis?.player_2?.shot_tendencies || "No shot tendency analysis available"}
-                        </p>
-                      </div>
+                    <div className="p-5">
+                      <ul className="space-y-3">
+                        {analysis?.fixes?.map((fix, i) => (
+                          <li key={i} className="flex gap-3 text-sm group" data-testid={`text-fix-${i}`}>
+                            <div className="w-6 h-6 rounded-lg bg-orange-500/10 flex items-center justify-center shrink-0 group-hover:bg-orange-500/20 transition-colors">
+                              <AlertTriangle className="w-3 h-3 text-orange-400" />
+                            </div>
+                            <span className="text-gray-300 leading-relaxed">{fix}</span>
+                          </li>
+                        )) || <li className="text-gray-500 italic">No data available</li>}
+                      </ul>
                     </div>
                   </div>
                 </motion.section>
               </div>
+
+              {/* Training Plan Section */}
+              <motion.section variants={itemVariants}>
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#3b82f6] to-[#8b5cf6] flex items-center justify-center">
+                    <Activity className="w-5 h-5 text-white" />
+                  </div>
+                  <div>
+                    <h2 className="text-xl font-bold">Training Plan</h2>
+                    <p className="text-xs text-gray-500 tracking-wide">RECOMMENDED DRILLS</p>
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {analysis?.plan?.map((drill, i) => (
+                    <div key={i} className="bg-[#141820] border border-[#1e2430] rounded-2xl p-5 relative overflow-hidden" data-testid={`card-drill-${i}`}>
+                      <div className="absolute top-0 left-0 w-1 h-full bg-gradient-to-b from-[#3b82f6] to-[#8b5cf6]" />
+                      <h4 className="font-bold text-[#3b82f6] mb-2">{drill.title}</h4>
+                      <p className="text-gray-400 text-sm leading-relaxed">{drill.description}</p>
+                    </div>
+                  )) || (
+                    <div className="bg-[#141820] border border-[#1e2430] rounded-2xl p-5">
+                      <p className="text-gray-500 italic">No training plan available</p>
+                    </div>
+                  )}
+                </div>
+              </motion.section>
 
               {/* Footer CTA */}
               <motion.div variants={itemVariants} className="pt-8">
