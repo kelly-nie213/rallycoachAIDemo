@@ -610,6 +610,7 @@ def main():
     5. Call Gemini LLM for insights
     6. Output structured results
     """
+    print("this is the main function")
     # Parse command line arguments
     if len(sys.argv) < 2:
         print(
