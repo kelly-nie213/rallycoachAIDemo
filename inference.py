@@ -71,7 +71,7 @@ JOINT_VISIBILITY_THRESHOLD = 0.5
 # Gemini API settings (uses Replit AI Integrations - no API key needed)
 GEMINI_MODEL = "gemini-2.5-flash"  # Fast model for video analysis
 GEMINI_BASE_URL = os.environ.get("AI_INTEGRATIONS_GEMINI_BASE_URL", "")
-GEMINI_API_KEY = my_secret =os.environ['key']
+GEMINI_API_KEY = "AIzaSyCMUm6lc5xqTDzc4OM6LGoKeIZMRIYyJCo"
 os.environ.get("AI_INTEGRATIONS_GEMINI_API_KEY", "")
 
 # ============================================================================
