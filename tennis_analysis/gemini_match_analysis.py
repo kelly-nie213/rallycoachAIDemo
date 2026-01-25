@@ -22,7 +22,7 @@ def parse_args():
 # ============================
 # CONFIG
 # ============================
-VIDEO_PATH = "../tennis_analysis/output_videos/output_video.mp4"
+VIDEO_PATH = "/tmp/annotated_output.mp4"
 FRAME_STRIDE = 5
 MODEL_NAME = "gemini-3-pro-preview"
 OUTPUT_TEXT_PATH = "match_summary.txt"
