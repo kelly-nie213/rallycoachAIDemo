@@ -18,7 +18,37 @@ import sys
 import os
 import json
 import time
+import logging
+import traceback
 from typing import Dict, List, Any, Optional
+
+# Set up file logging to capture complete output (Node.js truncates stdout)
+LOG_FILE = '/tmp/inference.log'
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s [%(levelname)s] %(message)s',
+    handlers=[
+        logging.FileHandler(LOG_FILE, mode='w'),
+        logging.StreamHandler(sys.stdout)
+    ]
+)
+logger = logging.getLogger(__name__)
+
+# Also redirect print statements to the log file
+class TeeOutput:
+    def __init__(self, *files):
+        self.files = files
+    def write(self, text):
+        for f in self.files:
+            f.write(text)
+            f.flush()
+    def flush(self):
+        for f in self.files:
+            f.flush()
+
+log_file_handle = open(LOG_FILE, 'a')
+sys.stdout = TeeOutput(sys.__stdout__, log_file_handle)
+sys.stderr = TeeOutput(sys.__stderr__, log_file_handle)
 
 # Add tennis_analysis to path for imports
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'tennis_analysis'))
