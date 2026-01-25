@@ -3,4 +3,15 @@ dist
 .DS_Store
 server/public
 vite.config.ts.*
-*.tar.gzannotated_output.mp4
+*.tar.gz
+
+# Large files
+annotated_output.mp4
+*.pt
+yolov8x.pt
+yolov8n.pt
+
+# Temp files
+/tmp/
+__pycache__/
+*.pyc
