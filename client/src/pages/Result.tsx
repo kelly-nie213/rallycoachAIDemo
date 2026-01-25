@@ -119,21 +119,39 @@ export default function ResultPage() {
                 />
                 
                 <div className="flex items-center justify-between mb-12 relative">
-                  <div className="absolute top-1/2 left-0 w-full h-0.5 bg-[#1e2430] -translate-y-1/2" />
+                  {/* Background track */}
+                  <div className="absolute top-1/2 left-0 w-full h-1 bg-[#1e2430] -translate-y-1/2 rounded-full" />
                   
-                  {/* Animated progress bar */}
+                  {/* Animated progress bar with shimmer */}
+                  <div className="absolute top-1/2 left-0 w-1/2 h-1 -translate-y-1/2 rounded-full overflow-hidden">
+                    <motion.div 
+                      className="h-full w-full bg-gradient-to-r from-[#d4ff00] via-[#84cea6] to-[#d4ff00]"
+                      animate={{ opacity: [0.6, 1, 0.6] }}
+                      transition={{ duration: 1, repeat: Infinity }}
+                    />
+                    {/* Shimmer effect */}
+                    <motion.div 
+                      className="absolute top-0 left-0 h-full w-8 bg-gradient-to-r from-transparent via-white/40 to-transparent"
+                      animate={{ x: [-32, 300] }}
+                      transition={{ duration: 1.5, repeat: Infinity, ease: "linear" }}
+                    />
+                  </div>
+                  
+                  {/* Moving dots on the progress line */}
                   <motion.div 
-                    className="absolute top-1/2 left-0 h-1 bg-gradient-to-r from-[#d4ff00] via-[#84cea6] to-[#d4ff00] -translate-y-1/2 rounded-full"
-                    initial={{ width: "10%" }}
+                    className="absolute top-1/2 -translate-y-1/2 w-3 h-3 rounded-full bg-[#d4ff00] shadow-lg shadow-[#d4ff00]/50"
                     animate={{ 
-                      width: video.status === "processing" ? ["20%", "60%", "40%", "70%", "50%"] : "10%",
-                      opacity: [1, 0.7, 1]
+                      left: ["10%", "45%", "10%"],
+                      scale: [1, 1.2, 1]
                     }}
-                    transition={{ 
-                      duration: 2, 
-                      repeat: Infinity, 
-                      ease: "easeInOut" 
+                    transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+                  />
+                  <motion.div 
+                    className="absolute top-1/2 -translate-y-1/2 w-2 h-2 rounded-full bg-[#84cea6] shadow-lg shadow-[#84cea6]/50"
+                    animate={{ 
+                      left: ["5%", "40%", "5%"],
                     }}
+                    transition={{ duration: 2, repeat: Infinity, ease: "easeInOut", delay: 0.3 }}
                   />
                   
                   <div className="relative z-10 flex flex-col items-center gap-2">
