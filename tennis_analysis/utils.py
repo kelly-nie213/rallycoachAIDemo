@@ -156,47 +156,31 @@ def draw_speed_table(height, stats_row):
 # ======================================================
 # MAIN
 # ======================================================
-def main(input_video=None, output_video=None, frame_skip=3):
+def main(input_video=None, output_video=None):
     """
     Run the tennis analysis pipeline.
     
     Args:
         input_video: Path to input video (defaults to INPUT_VIDEO constant)
         output_video: Path to save annotated output (defaults to OUTPUT_VIDEO constant)
-        frame_skip: Process every Nth frame to reduce memory usage (default: 3)
     
     Returns:
         str: Path to the saved annotated video
     """
-    import gc
-    
     input_video = input_video or INPUT_VIDEO
     output_video = output_video or OUTPUT_VIDEO
 
     print(f"[TennisAnalysis] Input video: {input_video}")
     print(f"[TennisAnalysis] Output video: {output_video}")
-    print(f"[TennisAnalysis] Frame skip: {frame_skip} (processing every {frame_skip}th frame)")
 
-    all_video_frames = read_video(input_video)
-    original_frame_count = len(all_video_frames)
-    
-    # Apply frame skipping to reduce memory usage
-    video_frames = all_video_frames[::frame_skip]
-    print(f"[TennisAnalysis] Reduced from {original_frame_count} to {len(video_frames)} frames")
-    
-    # Clear memory from skipped frames
-    del all_video_frames
-    gc.collect()
+    video_frames = read_video(input_video)
 
-    player_tracker = PlayerTracker(model_path="yolov8n")
+    player_tracker = PlayerTracker(model_path="yolov8x")
     ball_tracker = BallTracker(model_path=BALL_MODEL)
 
     player_dets = player_tracker.detect_frames(video_frames)
-    gc.collect()  # Free memory after player detection
-    
     ball_dets = ball_tracker.detect_frames(video_frames)
     ball_dets = ball_tracker.interpolate_ball_positions(ball_dets)
-    gc.collect()  # Free memory after ball detection
 
     court_detector = CourtLineDetector(COURT_MODEL)
     court_kps = court_detector.predict(video_frames[0])
