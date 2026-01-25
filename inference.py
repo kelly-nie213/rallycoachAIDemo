@@ -75,59 +75,47 @@ GEMINI_API_KEY = os.environ.get("AI_INTEGRATIONS_GEMINI_API_KEY", "")
 # ============================================================================
 
 
-def load_video(video_path: str, output_dir: str = "/tmp") -> Dict[str, Any]:
+def load_video(video_path: str) -> Dict[str, Any]:
     """
-    Load video and run tennis analysis pipeline to generate annotated video.
+    Load and validate the input video file.
 
-    This function calls the main function from tennis_analysis/utils.py to:
-    - Track players and ball
-    - Detect court lines
-    - Generate annotated video with mini court visualization
-    - Return analysis results
+    In production, this would use OpenCV (cv2) to:
+    - Open the video file
+    - Extract metadata (duration, fps, resolution)
+    - Validate format compatibility
 
     Args:
         video_path: Path to the uploaded video file
-        output_dir: Directory to save the annotated video
 
     Returns:
-        Dictionary containing video metadata and analysis results
+        Dictionary containing video metadata and frame iterator
     """
-    import importlib.util
-    
-    print(f"[STEP 1.1] Loading video and running tennis analysis: {video_path}")
+    print(f"[STEP 1.1] Loading video: {video_path}")
 
-    # Import tennis_analysis utils dynamically
-    utils_path = os.path.join(os.path.dirname(__file__), 'tennis_analysis', 'utils.py')
-    spec = importlib.util.spec_from_file_location("tennis_utils", utils_path)
-    if spec is None or spec.loader is None:
-        raise ImportError(f"Could not load tennis_analysis utils from {utils_path}")
-    tennis_utils = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(tennis_utils)
-    tennis_analysis_main = tennis_utils.main
-    
-    annotated_path = os.path.join(output_dir, "annotated_output.mp4")
-    
-    # Run the full tennis analysis pipeline
-    # This handles: player tracking, ball tracking, court detection, 
-    # mini court visualization, and annotated video generation
-    analysis_results = tennis_analysis_main(
-        input_video=video_path,
-        output_video=annotated_path
-    )
-    
-    print(f"[STEP 1.1] Tennis analysis complete")
-    print(f"[STEP 1.1] Annotated video saved to: {annotated_path}")
-    
-    # Build metadata from analysis results
+    # PSEUDO CODE - Actual implementation would use OpenCV
+    # ---------------------------------------------------------
+    # import cv2
+    # cap = cv2.VideoCapture(video_path)
+    # if not cap.isOpened():
+    #     raise ValueError(f"Cannot open video: {video_path}")
+    #
+    # metadata = {
+    #     "width": int(cap.get(cv2.CAP_PROP_FRAME_WIDTH)),
+    #     "height": int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT)),
+    #     "fps": cap.get(cv2.CAP_PROP_FPS),
+    #     "frame_count": int(cap.get(cv2.CAP_PROP_FRAME_COUNT)),
+    #     "duration_seconds": frame_count / fps
+    # }
+    # ---------------------------------------------------------
+
+    # DUMMY IMPLEMENTATION - Simulated metadata
     metadata = {
         "width": 1920,
         "height": 1080,
-        "fps": analysis_results["video"]["fps"],
-        "frame_count": analysis_results["video"]["total_frames"],
-        "duration_seconds": analysis_results["video"]["duration_seconds"],
-        "path": video_path,
-        "annotated_path": annotated_path,
-        "analysis_results": analysis_results
+        "fps": 30.0,
+        "frame_count": 450,  # ~15 seconds of footage
+        "duration_seconds": 15.0,
+        "path": video_path
     }
 
     print(
@@ -681,15 +669,39 @@ def main():
         print("\n[STEP 1] VIDEO PROCESSING (Tennis Analysis Pipeline)")
         print("-" * 40)
         
-        # Call load_video which runs the full tennis analysis pipeline
-        video_metadata = load_video(video_path, output_dir)
+        # Import and run the tennis analysis main function
+        # The utils module is in tennis_analysis directory
+        import importlib.util
+        utils_path = os.path.join(os.path.dirname(__file__), 'tennis_analysis', 'utils.py')
+        spec = importlib.util.spec_from_file_location("tennis_utils", utils_path)
+        if spec is None or spec.loader is None:
+            raise ImportError(f"Could not load tennis_analysis utils from {utils_path}")
+        tennis_utils = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(tennis_utils)
+        tennis_analysis_main = tennis_utils.main
         
-        # Extract analysis results and annotated video path
-        analysis_results = video_metadata["analysis_results"]
-        annotated_path = video_metadata["annotated_path"]
+        annotated_path = os.path.join(output_dir, "annotated_output.mp4")
+        
+        # Run the full tennis analysis pipeline
+        # This handles: player tracking, ball tracking, court detection, 
+        # mini court visualization, and annotated video generation
+        analysis_results = tennis_analysis_main(
+            input_video=video_path,
+            output_video=annotated_path
+        )
         
         print(f"[STEP 1] Tennis analysis complete")
         print(f"[STEP 1] Annotated video saved to: {annotated_path}")
+        
+        # Extract video metadata from analysis results
+        video_metadata = {
+            "path": video_path,
+            "width": 1920,  # Default, actual comes from video
+            "height": 1080,
+            "fps": analysis_results["video"]["fps"],
+            "frame_count": analysis_results["video"]["total_frames"],
+            "duration_seconds": analysis_results["video"]["duration_seconds"]
+        }
         
         # Convert tennis analysis results to biomechanics format for Gemini
         player_1 = analysis_results["players"]["player_1"]
