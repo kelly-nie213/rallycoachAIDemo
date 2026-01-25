@@ -75,52 +75,60 @@ GEMINI_API_KEY = os.environ.get("AI_INTEGRATIONS_GEMINI_API_KEY", "")
 # ============================================================================
 
 
-def load_video(video_path: str) -> Dict[str, Any]:
+def load_video(video_path: str, output_dir: str = "/tmp") -> Dict[str, Any]:
     """
-    Load and validate the input video file.
+    Load and process the input video file using the tennis analysis pipeline.
 
-    In production, this would use OpenCV (cv2) to:
-    - Open the video file
-    - Extract metadata (duration, fps, resolution)
-    - Validate format compatibility
+    This calls the main() function from tennis_analysis/utils.py to:
+    - Run player/ball detection
+    - Generate annotated video with tracking overlays
+    - Save the annotated video to output_dir
 
     Args:
         video_path: Path to the uploaded video file
+        output_dir: Directory to save the annotated output video
 
     Returns:
-        Dictionary containing video metadata and frame iterator
+        Dictionary containing video metadata and path to annotated video
     """
+    import cv2
+    from utils import main as run_tennis_analysis
+    
     print(f"[STEP 1.1] Loading video: {video_path}")
-
-    # PSEUDO CODE - Actual implementation would use OpenCV
-    # ---------------------------------------------------------
-    # import cv2
-    # cap = cv2.VideoCapture(video_path)
-    # if not cap.isOpened():
-    #     raise ValueError(f"Cannot open video: {video_path}")
-    #
-    # metadata = {
-    #     "width": int(cap.get(cv2.CAP_PROP_FRAME_WIDTH)),
-    #     "height": int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT)),
-    #     "fps": cap.get(cv2.CAP_PROP_FPS),
-    #     "frame_count": int(cap.get(cv2.CAP_PROP_FRAME_COUNT)),
-    #     "duration_seconds": frame_count / fps
-    # }
-    # ---------------------------------------------------------
-
-    # DUMMY IMPLEMENTATION - Simulated metadata
+    
+    # Get video metadata using OpenCV
+    cap = cv2.VideoCapture(video_path)
+    if not cap.isOpened():
+        raise ValueError(f"Cannot open video: {video_path}")
+    
     metadata = {
-        "width": 1920,
-        "height": 1080,
-        "fps": 30.0,
-        "frame_count": 450,  # ~15 seconds of footage
-        "duration_seconds": 15.0,
+        "width": int(cap.get(cv2.CAP_PROP_FRAME_WIDTH)),
+        "height": int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT)),
+        "fps": cap.get(cv2.CAP_PROP_FPS),
+        "frame_count": int(cap.get(cv2.CAP_PROP_FRAME_COUNT)),
         "path": video_path
     }
-
-    print(
-        f"[STEP 1.1] Video loaded: {metadata['duration_seconds']:.1f}s @ {metadata['fps']}fps"
+    metadata["duration_seconds"] = metadata["frame_count"] / metadata["fps"] if metadata["fps"] > 0 else 0
+    cap.release()
+    
+    print(f"[STEP 1.1] Video loaded: {metadata['duration_seconds']:.1f}s @ {metadata['fps']}fps")
+    
+    # Set output path for annotated video
+    output_video_path = os.path.join(output_dir, "annotated_output.mp4")
+    
+    print(f"[STEP 1.2] Running tennis analysis pipeline...")
+    print(f"[STEP 1.2] Input: {video_path}")
+    print(f"[STEP 1.2] Output: {output_video_path}")
+    
+    # Call the main tennis analysis function
+    annotated_path = run_tennis_analysis(
+        input_video=video_path,
+        output_video=output_video_path
     )
+    
+    metadata["annotated_video_path"] = annotated_path
+    print(f"[STEP 1.3] Annotated video saved to: {annotated_path}")
+    
     return metadata
 
 

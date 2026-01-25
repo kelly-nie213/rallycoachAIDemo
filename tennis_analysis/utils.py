@@ -196,8 +196,24 @@ def draw_speed_table(height, stats_row):
 # ======================================================
 # MAIN
 # ======================================================
-def main():
-    video_frames = read_video(INPUT_VIDEO)
+def main(input_video=None, output_video=None):
+    """
+    Run the tennis analysis pipeline.
+    
+    Args:
+        input_video: Path to input video (defaults to INPUT_VIDEO constant)
+        output_video: Path to save annotated output (defaults to OUTPUT_VIDEO constant)
+    
+    Returns:
+        str: Path to the saved annotated video
+    """
+    input_video = input_video or INPUT_VIDEO
+    output_video = output_video or OUTPUT_VIDEO
+    
+    print(f"[TennisAnalysis] Input video: {input_video}")
+    print(f"[TennisAnalysis] Output video: {output_video}")
+    
+    video_frames = read_video(input_video)
 
     player_tracker = PlayerTracker(model_path="yolov8x")
     ball_tracker = BallTracker(model_path=BALL_MODEL)
@@ -414,7 +430,45 @@ def main():
 
         final_frames.append(np.hstack((frame, table1, table2)))
 
-    save_video(final_frames, OUTPUT_VIDEO)
+    save_video(final_frames, output_video)
+    print(f"[TennisAnalysis] Annotated video saved to: {output_video}")
+    
+    # Compile analysis results to return
+    total_frames = len(video_frames)
+    duration_seconds = total_frames / FPS
+    
+    # Get final stats from DataFrame
+    final_stats = df.iloc[-1] if len(df) > 0 else {}
+    
+    analysis_results = {
+        "annotated_video_path": output_video,
+        "video": {
+            "total_frames": total_frames,
+            "fps": FPS,
+            "duration_seconds": duration_seconds
+        },
+        "players": {
+            "player_1": {
+                "shots": int(final_stats.get("player_1_number_of_shots", 0)),
+                "avg_shot_speed_kmh": float(final_stats.get("player_1_average_shot_speed", 0)),
+                "avg_player_speed_kmh": float(final_stats.get("player_1_average_player_speed", 0)),
+                "distance_traveled_m": float(distance_traveled.get(1, 0))
+            },
+            "player_2": {
+                "shots": int(final_stats.get("player_2_number_of_shots", 0)),
+                "avg_shot_speed_kmh": float(final_stats.get("player_2_average_shot_speed", 0)),
+                "avg_player_speed_kmh": float(final_stats.get("player_2_average_player_speed", 0)),
+                "distance_traveled_m": float(distance_traveled.get(2, 0))
+            }
+        },
+        "ball_tracking": {
+            "total_shots": len(ball_shot_frames),
+            "ball_in_out_status": ball_in_out_status
+        }
+    }
+    
+    print(f"[TennisAnalysis] Analysis complete. Results: {total_frames} frames, {len(ball_shot_frames)} shots detected")
+    return analysis_results
 
 if __name__ == "__main__":
     main()
