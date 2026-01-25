@@ -71,7 +71,7 @@ JOINT_VISIBILITY_THRESHOLD = 0.5
 # Gemini API settings (uses Replit AI Integrations - no API key needed)
 GEMINI_MODEL = "gemini-2.5-flash"  # Fast model for video analysis
 GEMINI_BASE_URL = os.environ.get("AI_INTEGRATIONS_GEMINI_BASE_URL", "")
-GEMINI_API_KEY = "AIzaSyCMUm6lc5xqTDzc4OM6LGoKeIZMRIYyJCo"
+GEMINI_API_KEY = "xxx"
 os.environ.get("AI_INTEGRATIONS_GEMINI_API_KEY", "")
 
 # ============================================================================
@@ -462,7 +462,8 @@ def generate_annotated_video(video_metadata: Dict[str, Any],
 # ============================================================================
 
 
-def call_gemini_llm(biomechanics: Dict[str, Any], annotated_video_path: str = None) -> Dict[str, Any]:
+def call_gemini_llm(biomechanics: Dict[str, Any],
+                    annotated_video_path: str = None) -> Dict[str, Any]:
     """
     Call Gemini LLM to generate professional coaching insights.
 
@@ -478,60 +479,85 @@ def call_gemini_llm(biomechanics: Dict[str, Any], annotated_video_path: str = No
     print(f"[STEP 3.1] Calling Gemini LLM for coaching analysis")
     print(f"[STEP 3.1] Annotated video path: {annotated_video_path}")
 
-    # Use the hardcoded API key or environment variable
-    api_key = GEMINI_API_KEY or os.environ.get("GEMINI_API_KEY")
-    
+    # Get API key from environment
+    api_key = os.environ.get("GEMINI_API_KEY")
+
     if api_key and annotated_video_path:
         try:
             # Import and call gemini_match_analysis
             import importlib.util
-            gemini_path = os.path.join(os.path.dirname(__file__), 'tennis_analysis', 'gemini_match_analysis.py')
-            spec = importlib.util.spec_from_file_location("gemini_analysis", gemini_path)
+            gemini_path = os.path.join(os.path.dirname(__file__),
+                                       'tennis_analysis',
+                                       'gemini_match_analysis.py')
+            spec = importlib.util.spec_from_file_location(
+                "gemini_analysis", gemini_path)
             if spec is None or spec.loader is None:
-                raise ImportError(f"Could not load gemini_match_analysis from {gemini_path}")
+                raise ImportError(
+                    f"Could not load gemini_match_analysis from {gemini_path}")
             gemini_module = importlib.util.module_from_spec(spec)
             spec.loader.exec_module(gemini_module)
-            
-            print(f"[STEP 3.2] Running Gemini match analysis on: {annotated_video_path}")
-            gemini_result = gemini_module.analyze_match(api_key, annotated_video_path)
-            
+
+            print(
+                f"[STEP 3.2] Running Gemini match analysis on: {annotated_video_path}"
+            )
+            gemini_result = gemini_module.analyze_match(
+                api_key, annotated_video_path)
+
             # Log the analysis results
             print(f"\n{'='*60}")
             print(f"[GEMINI ANALYSIS RESULTS]")
             print(f"{'='*60}")
             print(json.dumps(gemini_result, indent=2))
             print(f"{'='*60}\n")
-            
+
             # Convert gemini_result to expected format
             analysis = {
                 "dna": {
-                    "technical": 75,
-                    "tactical": 70,
-                    "summary": gemini_result.get("overall_match_summary", "Analysis complete.")
+                    "technical":
+                    75,
+                    "tactical":
+                    70,
+                    "summary":
+                    gemini_result.get("overall_match_summary",
+                                      "Analysis complete.")
                 },
-                "strengths": gemini_result.get("player_1", {}).get("strong_shots", []),
-                "fixes": gemini_result.get("player_1", {}).get("weak_shots", []),
-                "player_analysis": gemini_result,
+                "strengths":
+                gemini_result.get("player_1", {}).get("strong_shots", []),
+                "fixes":
+                gemini_result.get("player_1", {}).get("weak_shots", []),
+                "player_analysis":
+                gemini_result,
                 "plan": [{
-                    "title": "Footwork Improvement",
-                    "description": gemini_result.get("player_1", {}).get("footwork", "Work on court movement.")
+                    "title":
+                    "Footwork Improvement",
+                    "description":
+                    gemini_result.get("player_1",
+                                      {}).get("footwork",
+                                              "Work on court movement.")
                 }, {
-                    "title": "Shot Tendencies",
-                    "description": gemini_result.get("player_1", {}).get("shot_tendencies", "Focus on shot variety.")
+                    "title":
+                    "Shot Tendencies",
+                    "description":
+                    gemini_result.get("player_1",
+                                      {}).get("shot_tendencies",
+                                              "Focus on shot variety.")
                 }]
             }
-            
+
             print(f"[STEP 3.3] Gemini analysis complete")
             return analysis
-            
+
         except Exception as e:
             print(f"[STEP 3.1] Gemini analysis failed: {str(e)}")
             print(f"[STEP 3.1] Falling back to biomechanics-based analysis")
     else:
         if not api_key:
-            print(f"[STEP 3.1] GEMINI_API_KEY not set - using fallback analysis")
+            print(
+                f"[STEP 3.1] GEMINI_API_KEY not set - using fallback analysis")
         if not annotated_video_path:
-            print(f"[STEP 3.1] No annotated video path provided - using fallback analysis")
+            print(
+                f"[STEP 3.1] No annotated video path provided - using fallback analysis"
+            )
 
     # Fallback: Generate analysis based on biomechanics data
     technical_score = int((biomechanics["kinetic_chain_efficiency"] * 0.3) +
@@ -543,15 +569,19 @@ def call_gemini_llm(biomechanics: Dict[str, Any], annotated_video_path: str = No
 
     analysis = {
         "dna": {
-            "technical": technical_score,
-            "tactical": tactical_score,
-            "summary": (f"The player demonstrates solid biomechanical fundamentals with "
-                       f"{biomechanics['kinetic_chain_efficiency']}% kinetic chain efficiency "
-                       f"and {biomechanics['core_rotation_speed']}°/s core rotation speed. "
-                       f"The shoulder-hip separation of {biomechanics['shoulder_hip_separation']}° "
-                       f"indicates good power generation potential. Focus areas include "
-                       f"improving stroke consistency ({biomechanics['stroke_consistency']}%) "
-                       f"and footwork efficiency ({biomechanics['footwork_efficiency']}%).")
+            "technical":
+            technical_score,
+            "tactical":
+            tactical_score,
+            "summary":
+            (f"The player demonstrates solid biomechanical fundamentals with "
+             f"{biomechanics['kinetic_chain_efficiency']}% kinetic chain efficiency "
+             f"and {biomechanics['core_rotation_speed']}°/s core rotation speed. "
+             f"The shoulder-hip separation of {biomechanics['shoulder_hip_separation']}° "
+             f"indicates good power generation potential. Focus areas include "
+             f"improving stroke consistency ({biomechanics['stroke_consistency']}%) "
+             f"and footwork efficiency ({biomechanics['footwork_efficiency']}%)."
+             )
         },
         "strengths": [
             f"Kinetic chain efficiency at {biomechanics['kinetic_chain_efficiency']}%",
@@ -563,15 +593,21 @@ def call_gemini_llm(biomechanics: Dict[str, Any], annotated_video_path: str = No
             f"Work on stroke consistency (currently {biomechanics['stroke_consistency']}%)"
         ],
         "plan": [{
-            "title": "DRILL 1: Kinetic Chain Activation",
-            "description": "Shadow swing practice focusing on sequential activation: legs → hips → core → shoulders → arm."
+            "title":
+            "DRILL 1: Kinetic Chain Activation",
+            "description":
+            "Shadow swing practice focusing on sequential activation: legs → hips → core → shoulders → arm."
         }, {
-            "title": "DRILL 2: Footwork Ladder",
-            "description": "Agility ladder exercises combined with split-step timing. 10 minutes daily for 2 weeks."
+            "title":
+            "DRILL 2: Footwork Ladder",
+            "description":
+            "Agility ladder exercises combined with split-step timing. 10 minutes daily for 2 weeks."
         }]
     }
 
-    print(f"[STEP 3.1] Fallback analysis complete: Technical {technical_score}%, Tactical {tactical_score}%")
+    print(
+        f"[STEP 3.1] Fallback analysis complete: Technical {technical_score}%, Tactical {tactical_score}%"
+    )
     return analysis
 
 

@@ -1,0 +1,37 @@
+# **Tennis Match Performance Report**
+
+
+## **Player 1**
+
+**Strong Shots:**
+- **Cross-court Forehand (Frame 80-95): Player 1 hits a solid forehand from deep in the court, generating 55.8 km/h to neutralize the rally.**
+
+**Weak Shots:**
+- **Defensive Backhand (Frame 155-160): Player 1 is forced onto the back foot and hits a defensive shot while moving backwards, unable to generate significant offensive pressure.**
+
+**Footwork Analysis:**
+*High-volume defensive movement. Player 1 travels significantly more distance (74.31m by Frame 200) compared to Player 2 (42.52m), indicating he is being moved side-to-side. He utilizes wide lateral slides and open stances (Frame 75) to reach deep shots.*
+
+**Shot Tendencies:**
+*Counter-punching strategy. Player 1 stays well behind the baseline, absorbing pace and redirecting the ball cross-court (Frame 95) rather than stepping in to take the ball early.*
+
+
+## **Player 2**
+
+**Strong Shots:**
+- **Running Forehand (Frame 115-120): Player 2 strikes a powerful running forehand while moving to his right, maintaining a shot speed of 55.8 km/h.**
+- **Inside-Out Forehand setup (Frame 190): Player 2 positions himself aggressively to dictate with the forehand.**
+
+**Weak Shots:**
+- *None identified*
+
+**Footwork Analysis:**
+*Efficient and aggressive. Player 2 covers less ground (42.52m total) while dictating the point. He uses split steps effectively (Frame 50, Frame 100) and recovers quickly to the center of the court.*
+
+**Shot Tendencies:**
+*Aggressive baseline dominance. Player 2 looks to dictate play with his forehand, hitting deep returns (Frame 40) and moving the opponent around the court. He maintains consistent groundstroke speeds between 55.1 km/h and 55.8 km/h.*
+
+
+## **Overall Match Summary**
+
+*In this rally, Player 2 (Sonego) is controlling the point against Player 1 (Djokovic), consistent with the scoreboard lead. After Player 1 delivers a serve recorded at 33.1 km/h (Frame 15), Player 2 responds with deep, heavy groundstrokes. Player 2 dictates the center of the court, forcing Player 1 to travel nearly double the distance (74.31m vs 42.52m) to retrieve balls deep in the corners. The rally is characterized by heavy baseline exchanges with groundstroke speeds consistently averaging around 55.8 km/h.*
