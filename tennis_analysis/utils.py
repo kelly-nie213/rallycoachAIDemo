@@ -213,7 +213,7 @@ def main(input_video: str, output_video: str,
     court_detector = CourtLineDetector(court_model)
     print("[TennisAnalysis] CourtLineDetector initialized")
     court_kps = court_detector.predict(video_frames[0])
-    print(f"[TennisAnalysis] Court keypoints detected: {len(court_kps) if court_kps else 0}")
+    print(f"[TennisAnalysis] Court keypoints detected: {len(court_kps) if court_kps is not None else 0}")
     
     print("[TennisAnalysis] === STEP 6: Filtering Players ===")
     player_dets = player_tracker.choose_and_filter_players(
