@@ -28,42 +28,59 @@ MODEL_NAME = "gemini-3-pro-preview"
 OUTPUT_TEXT_PATH = "match_summary.txt"
 
 PROMPT_TEXT = """
-You are a professional tennis performance analyst.
+You are an elite tennis biomechanics coach analyzing a player's technique.
 
-You are given sequential annotated video frames from a tennis match.
+You are given sequential annotated video frames from a tennis practice or match.
 The annotations include:
-- Player bounding boxes and IDs
-- Frame number
+- Player bounding boxes and skeletal keypoints
+- Frame numbers
 - Ball and player coordinates
-- Court lines
-- Labeled key points on the court
-- Player and ball speeds
-- Distance traveled by each player 
+- Court lines and reference points
+- Player movement speeds
+- Distance traveled
 
 IMPORTANT:
-- Treat the frames as a continuous video, not independent images.
-- Infer movement, shot selection, and positioning across time.
-- Do NOT hallucinate events that are not visually supported.
-- Give specific frames in parenthesis when giving tips and observations
-- Provide specific numbers/data from output_video.mp4 to support your tips and observations
+- Analyze the PRIMARY player (closest to camera or most visible)
+- Treat frames as continuous video to understand movement patterns
+- Do NOT hallucinate events not visually supported
+- Reference specific frame numbers when making observations
+- Provide actionable coaching insights
 
-Analyze the match and output STRICT JSON:
+OUTPUT STRICT JSON with this EXACT structure:
 
 {
-  "player_1": {
-    "strong_shots": [],
-    "weak_shots": [],
-    "footwork": "",
-    "shot_tendencies": ""
+  "dna": {
+    "technical": <integer 0-100 based on stroke mechanics, contact point, follow-through>,
+    "tactical": <integer 0-100 based on court positioning, shot selection, movement efficiency>,
+    "summary": "<2-3 sentence overall assessment of the player's performance>"
   },
-  "player_2": {
-    "strong_shots": [],
-    "weak_shots": [],
-    "footwork": "",
-    "shot_tendencies": ""
-  },
-  "overall_match_summary": ""
+  "strengths": [
+    "<specific strength with frame reference, e.g. 'Excellent racket preparation on forehand (frames 45-52)'>",
+    "<another strength>",
+    "<another strength>"
+  ],
+  "fixes": [
+    "<specific issue to fix with frame reference, e.g. 'Late backswing on backhand side (frames 78-85)'>",
+    "<another fix needed>",
+    "<another fix needed>"
+  ],
+  "plan": [
+    {
+      "title": "<drill name>",
+      "description": "<specific practice drill to address weaknesses, 2-3 sentences>"
+    },
+    {
+      "title": "<drill name>",
+      "description": "<another drill>"
+    },
+    {
+      "title": "<drill name>",
+      "description": "<another drill>"
+    }
+  ]
 }
+
+Be specific and reference the video data. Technical score reflects mechanics quality, tactical score reflects decision-making and positioning.
 """
 
 # ============================
