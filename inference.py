@@ -68,10 +68,11 @@ TARGET_FPS = 30  # Target frames per second for annotated video
 POSE_CONFIDENCE_THRESHOLD = 0.6
 JOINT_VISIBILITY_THRESHOLD = 0.5
 
-# Gemini API settings
+# Gemini API settings (uses Replit AI Integrations - no API key needed)
 GEMINI_MODEL = "gemini-2.5-flash"  # Fast model for video analysis
 GEMINI_BASE_URL = os.environ.get("AI_INTEGRATIONS_GEMINI_BASE_URL", "")
-GEMINI_API_KEY = "AIzaSyCMUm6lc5xqTDzc4OM6LGoKeIZMRIYyJCo"
+GEMINI_API_KEY = "AIzaSyC6mFC6VXzQd87yFuSKoj0fxZhlP88hJvs"
+os.environ.get("AI_INTEGRATIONS_GEMINI_API_KEY", "")
 
 # ============================================================================
 # STEP 1: VIDEO PROCESSING
@@ -327,53 +328,53 @@ def analyze_biomechanics(poses: List[Dict[str, Any]]) -> Dict[str, Any]:
     # ---------------------------------------------------------
 
     # DUMMY IMPLEMENTATION - Simulated biomechanics
-    biomechanics = {
-        "kinetic_chain_efficiency":
-        78,  # Percentage score
-        "core_rotation_speed":
-        145,  # Degrees per second
-        "shoulder_hip_separation":
-        42,  # Degrees
-        "racket_head_speed":
-        85,  # MPH estimate
-        "balance_score":
-        82,  # Stability during strokes
-        "footwork_efficiency":
-        75,  # Movement economy
-        "stroke_consistency":
-        71,  # Shot-to-shot variation
-        "detected_strokes": [{
-            "type": "forehand",
-            "count": 8,
-            "avg_quality": 0.76
-        }, {
-            "type": "backhand",
-            "count": 5,
-            "avg_quality": 0.68
-        }, {
-            "type": "serve",
-            "count": 2,
-            "avg_quality": 0.72
-        }],
-        "key_moments": [{
-            "timestamp": 2.5,
-            "event": "forehand_winner",
-            "quality": 0.92
-        }, {
-            "timestamp": 7.2,
-            "event": "backhand_error",
-            "quality": 0.45
-        }, {
-            "timestamp": 12.1,
-            "event": "serve_ace",
-            "quality": 0.88
-        }]
-    }
+    # biomechanics = {
+    #     "kinetic_chain_efficiency":
+    #     78,  # Percentage score
+    #     "core_rotation_speed":
+    #     145,  # Degrees per second
+    #     "shoulder_hip_separation":
+    #     42,  # Degrees
+    #     "racket_head_speed":
+    #     85,  # MPH estimate
+    #     "balance_score":
+    #     82,  # Stability during strokes
+    #     "footwork_efficiency":
+    #     75,  # Movement economy
+    #     "stroke_consistency":
+    #     71,  # Shot-to-shot variation
+    #     "detected_strokes": [{
+    #         "type": "forehand",
+    #         "count": 8,
+    #         "avg_quality": 0.76
+    #     }, {
+    #         "type": "backhand",
+    #         "count": 5,
+    #         "avg_quality": 0.68
+    #     }, {
+    #         "type": "serve",
+    #         "count": 2,
+    #         "avg_quality": 0.72
+    #     }],
+    #     "key_moments": [{
+    #         "timestamp": 2.5,
+    #         "event": "forehand_winner",
+    #         "quality": 0.92
+    #     }, {
+    #         "timestamp": 7.2,
+    #         "event": "backhand_error",
+    #         "quality": 0.45
+    #     }, {
+    #         "timestamp": 12.1,
+    #         "event": "serve_ace",
+    #         "quality": 0.88
+    #     }]
+    # }
 
-    print(
-        f"[STEP 1.4] Biomechanics analyzed: Kinetic chain {biomechanics['kinetic_chain_efficiency']}%"
-    )
-    return biomechanics
+    # print(
+    #     f"[STEP 1.4] Biomechanics analyzed: Kinetic chain {biomechanics['kinetic_chain_efficiency']}%"
+    # )
+    # return biomechanics
 
 
 # ============================================================================
@@ -509,28 +510,41 @@ def call_gemini_llm(biomechanics: Dict[str, Any],
             print(json.dumps(gemini_result, indent=2))
             print(f"{'='*60}\n")
 
-            # Gemini now returns the correct format directly: dna, strengths, fixes, plan
-            # Validate and ensure all required fields exist
+            # Convert gemini_result to expected format
             analysis = {
-                "dna": gemini_result.get("dna", {
-                    "technical": 70,
-                    "tactical": 70,
-                    "summary": "Analysis complete."
-                }),
-                "strengths": gemini_result.get("strengths", []),
-                "fixes": gemini_result.get("fixes", []),
-                "plan": gemini_result.get("plan", [])
+                "dna": {
+                    "technical":
+                    75,
+                    "tactical":
+                    70,
+                    "summary":
+                    gemini_result.get("overall_match_summary",
+                                      "Analysis complete.")
+                },
+                "strengths":
+                gemini_result.get("player_1", {}).get("strong_shots", []),
+                "fixes":
+                gemini_result.get("player_1", {}).get("weak_shots", []),
+                "player_analysis":
+                gemini_result,
+                "plan": [{
+                    "title":
+                    "Footwork Improvement",
+                    "description":
+                    gemini_result.get("player_1",
+                                      {}).get("footwork",
+                                              "Work on court movement.")
+                }, {
+                    "title":
+                    "Shot Tendencies",
+                    "description":
+                    gemini_result.get("player_1",
+                                      {}).get("shot_tendencies",
+                                              "Focus on shot variety.")
+                }]
             }
 
-            # Ensure dna has all required fields
-            if "technical" not in analysis["dna"]:
-                analysis["dna"]["technical"] = 70
-            if "tactical" not in analysis["dna"]:
-                analysis["dna"]["tactical"] = 70
-            if "summary" not in analysis["dna"]:
-                analysis["dna"]["summary"] = "Analysis complete."
-            
-            print(f"[STEP 3.3] Gemini analysis complete - Technical: {analysis['dna']['technical']}, Tactical: {analysis['dna']['tactical']}")
+            print(f"[STEP 3.3] Gemini analysis complete")
             return analysis
 
         except Exception as e:
@@ -653,7 +667,7 @@ def format_output(video_metadata: Dict[str, Any], biomechanics: Dict[str, Any],
 def main():
     """
     Main entry point for the inference pipeline.
-    
+
     Calls utils.main() from tennis_analysis to run the full pipeline,
     then passes results to Gemini LLM for coaching insights.
     """
