@@ -309,7 +309,7 @@ export default function ResultPage() {
                       </div>
                     </div>
                     <a 
-                      href={video.annotatedUrl} 
+                      href="/api/annotated-video"
                       download={`rallycoach-analysis-${video.id}.mp4`}
                       className="flex items-center gap-2 px-4 py-2.5 bg-[#d4ff00] hover:bg-[#c4ef00] text-black font-semibold rounded-xl transition-colors"
                       data-testid="button-download-video"

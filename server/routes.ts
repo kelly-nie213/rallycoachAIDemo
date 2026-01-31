@@ -15,6 +15,19 @@ export async function registerRoutes(
   // Register Object Storage routes for file uploads
   registerObjectStorageRoutes(app);
 
+  // Serve annotated video file
+  app.get("/api/annotated-video", (req, res) => {
+    const videoPath = "/tmp/annotated_output.mp4";
+    if (fs.existsSync(videoPath)) {
+      res.setHeader("Content-Type", "video/mp4");
+      res.setHeader("Content-Disposition", "attachment; filename=annotated_output.mp4");
+      const stream = fs.createReadStream(videoPath);
+      stream.pipe(res);
+    } else {
+      res.status(404).json({ message: "Annotated video not found" });
+    }
+  });
+
   // === API Routes ===
 
   // Upload video metadata (after file is uploaded to storage)
