@@ -501,7 +501,7 @@ def call_gemini_llm(biomechanics: Dict[str, Any],
                 f"[STEP 3.2] Running Gemini match analysis on: {annotated_video_path}"
             )
             gemini_result = gemini_module.analyze_match(
-                api_key, annotated_video_path)
+                api_key, annotated_video_path, biomechanics)
 
             # Log the analysis results
             print(f"\n{'='*60}")

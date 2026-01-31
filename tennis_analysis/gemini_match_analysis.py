@@ -27,7 +27,7 @@ FRAME_STRIDE = 5
 MODEL_NAME = "gemini-3-pro-preview"
 OUTPUT_TEXT_PATH = "match_summary.txt"
 
-PROMPT_TEXT = """
+PROMPT_BASE = """
 You are an elite tennis biomechanics coach analyzing a player's technique.
 
 You are given sequential annotated video frames from a tennis practice or match.
@@ -39,49 +39,76 @@ The annotations include:
 - Player movement speeds
 - Distance traveled
 
+{biomechanics_section}
+
 IMPORTANT:
 - Analyze the PRIMARY player (closest to camera or most visible)
 - Treat frames as continuous video to understand movement patterns
 - Do NOT hallucinate events not visually supported
 - Reference specific frame numbers when making observations
 - Provide actionable coaching insights
+- INCORPORATE the exact biomechanical metrics provided above into your analysis (speeds, distances, percentages)
 
 OUTPUT STRICT JSON with this EXACT structure:
 
-{
-  "dna": {
+{{
+  "dna": {{
     "technical": <integer 0-100 based on stroke mechanics, contact point, follow-through>,
     "tactical": <integer 0-100 based on court positioning, shot selection, movement efficiency>,
-    "summary": "<2-3 sentence overall assessment of the player's performance>"
-  },
+    "summary": "<2-3 sentence overall assessment referencing specific metrics like racket speed, efficiency scores>"
+  }},
   "strengths": [
-    "<specific strength with frame reference, e.g. 'Excellent racket preparation on forehand (frames 45-52)'>",
-    "<another strength>",
-    "<another strength>"
+    "<specific strength with exact metric, e.g. 'Excellent kinetic chain efficiency at 78%'>",
+    "<another strength with data>",
+    "<another strength with data>"
   ],
   "fixes": [
-    "<specific issue to fix with frame reference, e.g. 'Late backswing on backhand side (frames 78-85)'>",
-    "<another fix needed>",
-    "<another fix needed>"
+    "<specific issue with metric, e.g. 'Footwork efficiency at 75% - needs improvement'>",
+    "<another fix with data>",
+    "<another fix with data>"
   ],
   "plan": [
-    {
+    {{
       "title": "<drill name>",
-      "description": "<specific practice drill to address weaknesses, 2-3 sentences>"
-    },
-    {
-      "title": "<drill name>",
-      "description": "<another drill>"
-    },
-    {
+      "description": "<specific practice drill referencing the metrics that need improvement>"
+    }},
+    {{
       "title": "<drill name>",
       "description": "<another drill>"
-    }
+    }},
+    {{
+      "title": "<drill name>",
+      "description": "<another drill>"
+    }}
   ]
-}
+}}
 
-Be specific and reference the video data. Technical score reflects mechanics quality, tactical score reflects decision-making and positioning.
+Use the EXACT numbers from the biomechanics data in your response. Technical score reflects mechanics quality, tactical score reflects decision-making and positioning.
 """
+
+def build_prompt(biomechanics=None):
+    """Build the prompt with biomechanics data if available."""
+    if biomechanics:
+        strokes_text = ""
+        detected_strokes = biomechanics.get("detected_strokes", [])
+        if detected_strokes:
+            strokes_text = "Detected strokes:\n"
+            for stroke in detected_strokes:
+                strokes_text += f"  - {stroke.get('type', 'unknown')}: {stroke.get('count', 0)} shots, avg quality {stroke.get('avg_quality', 0):.0%}\n"
+        
+        biomechanics_section = f"""
+MEASURED BIOMECHANICS DATA (use these exact values in your analysis):
+- Kinetic Chain Efficiency: {biomechanics.get('kinetic_chain_efficiency', 'N/A')}%
+- Core Rotation Speed: {biomechanics.get('core_rotation_speed', 'N/A')}°/s
+- Balance Score: {biomechanics.get('balance_score', 'N/A')}%
+- Footwork Efficiency: {biomechanics.get('footwork_efficiency', 'N/A')}%
+- Racket Head Speed: {biomechanics.get('racket_head_speed', 'N/A'):.1f} MPH
+- Stroke Consistency: {biomechanics.get('stroke_consistency', 'N/A')}%
+{strokes_text}"""
+    else:
+        biomechanics_section = ""
+    
+    return PROMPT_BASE.format(biomechanics_section=biomechanics_section)
 
 # ============================
 # FRAME EXTRACTION
@@ -170,19 +197,22 @@ def format_summary(data):
 # ============================
 # GEMINI CALL
 # ============================
-def analyze_match(api_key, video_path=None):
+def analyze_match(api_key, video_path=None, biomechanics=None):
     """
     Analyze a tennis match video using Gemini.
     
     Args:
         api_key: Google AI Studio API key
         video_path: Path to the annotated video file (optional, uses default if not provided)
+        biomechanics: Dictionary of measured biomechanics data to include in analysis
     
     Returns:
         Dictionary with analysis results
     """
     video_to_analyze = video_path if video_path else VIDEO_PATH
     print(f"[GeminiAnalysis] Analyzing video: {video_to_analyze}")
+    if biomechanics:
+        print(f"[GeminiAnalysis] Including biomechanics: {list(biomechanics.keys())}")
     
     client = genai.Client(
         api_key=api_key,
@@ -190,8 +220,11 @@ def analyze_match(api_key, video_path=None):
     )
 
     frames_b64 = extract_frames(video_to_analyze, FRAME_STRIDE)
+    
+    # Build prompt with biomechanics data
+    prompt_text = build_prompt(biomechanics)
 
-    parts = [types.Part(text=PROMPT_TEXT)]
+    parts = [types.Part(text=prompt_text)]
 
     for f in frames_b64:
         parts.append(
