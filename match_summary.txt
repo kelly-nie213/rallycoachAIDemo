@@ -1,28 +1,28 @@
 # **Tennis Performance Report**
 
 ## **Performance DNA**
-- Technical Score: 74/100
-- Tactical Score: 85/100
+- Technical Score: 72/100
+- Tactical Score: 75/100
 
-**Summary:** The player demonstrates exceptional defensive stability with a Balance Score of 82% during wide slides (Frames 180-195). However, the Racket Head Speed of 27.6 MPH indicates a reliance on redirecting pace rather than generating offensive power, contributing to a moderate Kinetic Chain Efficiency of 78%.
+**Summary:** Player 1 demonstrates strong stability with a Balance Score of 82% even under heavy lateral load (Frames 85, 165). However, movement mechanics are labor-intensive, evidenced by a Footwork Efficiency of 75% over 74+ meters of travel, which limits Racket Head Speed to a defensive 27.6 MPH.
 
 ## **Key Strengths**
-- High Balance Score of 82% allows controlled deceleration during extreme lateral slides (Frames 20-25 and 190-200)
-- Kinetic Chain Efficiency at 78% ensures effective energy transfer even when forced into open stances
-- Forehand contact quality averaging 76% outperforms the backhand wing despite heavy defensive movement
+- Balance Score of 82% remains high during wide defensive shots (Frame 85), preventing posture collapse.
+- Core Rotation Speed of 145°/s provides essential torque, compensating for open-stance hitting positions.
+- Forehand average quality of 76% shows resilience, maintaining Kinetic Chain Efficiency at 78% even on the run (Frame 165).
 
 ## **Areas to Improve**
-- Racket Head Speed of 27.6 MPH is critically low, limiting offensive transition potential
-- Backhand stroke quality at 68% (seen in Frames 90-95) is a liability compared to the forehand side
-- Footwork Efficiency at 75% indicates wasted energy in recovery steps between directional changes (Frames 60-70)
+- Footwork Efficiency at 75% is the limiting factor; recovery steps between Frames 95-120 and 180-200 are reactive rather than proactive.
+- Racket Head Speed of 27.6 MPH is below offensive thresholds, likely due to late arrival at the ball affecting the loading phase.
+- Backhand average quality at 68% is the weak link, specifically struggling to maintain the Kinetic Chain Efficiency when pulled wide (Frame 90).
 
 ## **Training Plan**
 
-**Explosive Rotation Drill**
-Medicine ball throws mimicking groundstrokes to increase Core Rotation Speed above the current 145°/s and drive Racket Head Speed up.
+**High-Intensity Cone Recovery**
+Drill focusing on minimizing steps during recovery to center court to boost Footwork Efficiency from 75% to 85%.
 
-**Cone Recovery Sprints**
-High-intensity intervals focusing on the first crossover step to improve Footwork Efficiency from 75% to 85%.
+**Resistance Band Rotations**
+Explosive core work to translate the 145°/s Core Rotation Speed into higher Racket Head Speed (target >35 MPH).
 
-**Deep Backhand Isolation**
-Feed rapid deep balls to the backhand corner to improve stability and raise the 68% backhand quality and 71% stroke consistency.
+**End-Range Stability Volleys**
+Targeting the 68% Backhand quality by reinforcing kinetic chain integrity on wide, outstretched defensive balls.
