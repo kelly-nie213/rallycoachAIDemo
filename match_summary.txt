@@ -1,28 +1,28 @@
 # **Tennis Performance Report**
 
 ## **Performance DNA**
-- Technical Score: 92/100
-- Tactical Score: 88/100
+- Technical Score: 74/100
+- Tactical Score: 85/100
 
-**Summary:** The player demonstrates elite defensive skills, utilizing open-stance sliding on hard courts to neutralize aggressive shots. Footwork patterns are precise, specifically the split-step timing, though court positioning remains passive and deep behind the baseline throughout the rally.
+**Summary:** The player demonstrates exceptional defensive stability with a Balance Score of 82% during wide slides (Frames 180-195). However, the Racket Head Speed of 27.6 MPH indicates a reliance on redirecting pace rather than generating offensive power, contributing to a moderate Kinetic Chain Efficiency of 78%.
 
 ## **Key Strengths**
-- Exceptional defensive range and flexibility on the backhand wing, managing a controlled slice while fully stretched (Frames 10-18).
-- Textbook split-step timing, initiating the hop exactly as the opponent strikes the ball to maximize reaction speed (Frames 55-60 and 160-165).
-- Strong racket preparation on the running forehand, establishing a high unit turn before the feet are fully set (Frames 85-92).
+- High Balance Score of 82% allows controlled deceleration during extreme lateral slides (Frames 20-25 and 190-200)
+- Kinetic Chain Efficiency at 78% ensures effective energy transfer even when forced into open stances
+- Forehand contact quality averaging 76% outperforms the backhand wing despite heavy defensive movement
 
 ## **Areas to Improve**
-- Recovery positioning is too deep behind the baseline, yielding court geometry to the opponent (Frames 40-50).
-- Slight loss of center of gravity control during the extreme slide recovery, causing a split-second delay in changing direction (Frames 19-22).
-- Passive stance during recovery phase; legs straighten too much between shots rather than maintaining a loaded athletic base (Frames 120-130).
+- Racket Head Speed of 27.6 MPH is critically low, limiting offensive transition potential
+- Backhand stroke quality at 68% (seen in Frames 90-95) is a liability compared to the forehand side
+- Footwork Efficiency at 75% indicates wasted energy in recovery steps between directional changes (Frames 60-70)
 
 ## **Training Plan**
 
-**End-Range Stability Slides**
-Practice wide defensive balls requiring a slide into the shot. Focus on engaging the core to arrest momentum immediately after contact (like Frame 15) to shorten recovery time.
+**Explosive Rotation Drill**
+Medicine ball throws mimicking groundstrokes to increase Core Rotation Speed above the current 145°/s and drive Racket Head Speed up.
 
-**Baseline Tolerance Drill**
-A rallying drill where the player is penalized for recovering further than 1 meter behind the baseline. This encourages holding ground rather than retreating deep (fixing the issue in Frames 40-50).
+**Cone Recovery Sprints**
+High-intensity intervals focusing on the first crossover step to improve Footwork Efficiency from 75% to 85%.
 
-**Heavy Ball Counter-Punching**
-Feed wide, heavy forehands requiring the player to hit on the run (as seen in Frame 95). Focus on a high-loop follow-through to neutralize the point rather than attempting flat winners from defensive positions.
+**Deep Backhand Isolation**
+Feed rapid deep balls to the backhand corner to improve stability and raise the 68% backhand quality and 71% stroke consistency.

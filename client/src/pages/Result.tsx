@@ -17,7 +17,8 @@ import {
   AlertTriangle,
   Sparkles,
   Trophy,
-  BarChart3
+  BarChart3,
+  Download
 } from "lucide-react";
 import { Navbar } from "@/components/Navbar";
 import type { Video } from "@shared/schema";
@@ -294,6 +295,32 @@ export default function ResultPage() {
               animate="visible"
               className="space-y-8"
             >
+              {/* Annotated Video Download */}
+              {video.annotatedUrl && (
+                <motion.section variants={itemVariants}>
+                  <div className="bg-[#141820] border border-[#1e2430] rounded-2xl p-4 flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-[#1e2430] flex items-center justify-center">
+                        <Activity className="w-5 h-5 text-[#d4ff00]" />
+                      </div>
+                      <div>
+                        <h3 className="font-semibold">Annotated Video</h3>
+                        <p className="text-xs text-gray-500">Download your analyzed video with tracking overlays</p>
+                      </div>
+                    </div>
+                    <a 
+                      href={video.annotatedUrl} 
+                      download={`rallycoach-analysis-${video.id}.mp4`}
+                      className="flex items-center gap-2 px-4 py-2.5 bg-[#d4ff00] hover:bg-[#c4ef00] text-black font-semibold rounded-xl transition-colors"
+                      data-testid="button-download-video"
+                    >
+                      <Download className="w-4 h-4" />
+                      Download
+                    </a>
+                  </div>
+                </motion.section>
+              )}
+
               {/* Performance DNA Section */}
               <motion.section variants={itemVariants}>
                 <div className="flex items-center gap-3 mb-4">
