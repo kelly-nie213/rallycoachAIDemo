@@ -479,8 +479,8 @@ def call_gemini_llm(biomechanics: Dict[str, Any],
     print(f"[STEP 3.1] Calling Gemini LLM for coaching analysis")
     print(f"[STEP 3.1] Annotated video path: {annotated_video_path}")
 
-    # Get API key from environment
-    api_key = os.environ.get("GEMINI_API_KEY")
+    # Use the GEMINI_API_KEY constant defined at the top of the file
+    api_key = GEMINI_API_KEY
 
     if api_key and annotated_video_path:
         try:
@@ -510,41 +510,28 @@ def call_gemini_llm(biomechanics: Dict[str, Any],
             print(json.dumps(gemini_result, indent=2))
             print(f"{'='*60}\n")
 
-            # Convert gemini_result to expected format
+            # Gemini now returns the correct format directly: dna, strengths, fixes, plan
+            # Pass through the response with validation for required fields
             analysis = {
-                "dna": {
-                    "technical":
-                    75,
-                    "tactical":
-                    70,
-                    "summary":
-                    gemini_result.get("overall_match_summary",
-                                      "Analysis complete.")
-                },
-                "strengths":
-                gemini_result.get("player_1", {}).get("strong_shots", []),
-                "fixes":
-                gemini_result.get("player_1", {}).get("weak_shots", []),
-                "player_analysis":
-                gemini_result,
-                "plan": [{
-                    "title":
-                    "Footwork Improvement",
-                    "description":
-                    gemini_result.get("player_1",
-                                      {}).get("footwork",
-                                              "Work on court movement.")
-                }, {
-                    "title":
-                    "Shot Tendencies",
-                    "description":
-                    gemini_result.get("player_1",
-                                      {}).get("shot_tendencies",
-                                              "Focus on shot variety.")
-                }]
+                "dna": gemini_result.get("dna", {
+                    "technical": 70,
+                    "tactical": 70,
+                    "summary": "Analysis complete."
+                }),
+                "strengths": gemini_result.get("strengths", []),
+                "fixes": gemini_result.get("fixes", []),
+                "plan": gemini_result.get("plan", [])
             }
+            
+            # Ensure dna has all required fields
+            if "technical" not in analysis["dna"]:
+                analysis["dna"]["technical"] = 70
+            if "tactical" not in analysis["dna"]:
+                analysis["dna"]["tactical"] = 70
+            if "summary" not in analysis["dna"]:
+                analysis["dna"]["summary"] = "Analysis complete."
 
-            print(f"[STEP 3.3] Gemini analysis complete")
+            print(f"[STEP 3.3] Gemini analysis complete - Technical: {analysis['dna']['technical']}, Tactical: {analysis['dna']['tactical']}")
             return analysis
 
         except Exception as e:
