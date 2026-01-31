@@ -125,42 +125,47 @@ def extract_json(text):
 # ============================
 # FORMAT OUTPUT
 # ============================
-def format_summary(raw_text):
-    json_text = extract_json(raw_text)
-    data = json.loads(json_text)
-
-    def format_player(player_name, player_data):
-        text = []
-        text.append(f"## **{player_name.replace('_', ' ').title()}**\n")
-
-        text.append("**Strong Shots:**")
-        if player_data["strong_shots"]:
-            for s in player_data["strong_shots"]:
-                text.append(f"- **{s}**")
-        else:
-            text.append("- *None identified*")
-
-        text.append("\n**Weak Shots:**")
-        if player_data["weak_shots"]:
-            for w in player_data["weak_shots"]:
-                text.append(f"- **{w}**")
-        else:
-            text.append("- *None identified*")
-
-        text.append(f"\n**Footwork Analysis:**\n*{player_data['footwork']}*")
-        text.append(f"\n**Shot Tendencies:**\n*{player_data['shot_tendencies']}*\n")
-
-        return "\n".join(text)
-
+def format_summary(data):
+    """Format the analysis data into a readable text summary."""
     report = []
-    report.append("# **Tennis Match Performance Report**\n")
-    report.append(format_player("player_1", data["player_1"]))
-    report.append(format_player("player_2", data["player_2"]))
-
-    report.append("## **Overall Match Summary**")
-    report.append(f"*{data['overall_match_summary']}*")
-
-    return "\n\n".join(report)
+    report.append("# **Tennis Performance Report**\n")
+    
+    # Performance DNA
+    dna = data.get("dna", {})
+    report.append("## **Performance DNA**")
+    report.append(f"- Technical Score: {dna.get('technical', 'N/A')}/100")
+    report.append(f"- Tactical Score: {dna.get('tactical', 'N/A')}/100")
+    report.append(f"\n**Summary:** {dna.get('summary', 'No summary available.')}\n")
+    
+    # Strengths
+    report.append("## **Key Strengths**")
+    strengths = data.get("strengths", [])
+    if strengths:
+        for s in strengths:
+            report.append(f"- {s}")
+    else:
+        report.append("- *None identified*")
+    
+    # Areas to Improve
+    report.append("\n## **Areas to Improve**")
+    fixes = data.get("fixes", [])
+    if fixes:
+        for f in fixes:
+            report.append(f"- {f}")
+    else:
+        report.append("- *None identified*")
+    
+    # Training Plan
+    report.append("\n## **Training Plan**")
+    plan = data.get("plan", [])
+    if plan:
+        for drill in plan:
+            report.append(f"\n**{drill.get('title', 'Drill')}**")
+            report.append(f"{drill.get('description', '')}")
+    else:
+        report.append("- *No drills recommended*")
+    
+    return "\n".join(report)
 
 # ============================
 # GEMINI CALL
@@ -207,17 +212,19 @@ def analyze_match(api_key, video_path=None):
     raw_text = response.text or ""
     print(f"[GeminiAnalysis] Raw response received ({len(raw_text)} chars)")
     
-    # Parse and format the response
+    # Parse the JSON response
     json_text = extract_json(raw_text)
     analysis_data = json.loads(json_text)
-    formatted_text = format_summary(raw_text)
-
+    
+    print(f"[GeminiAnalysis] Parsed analysis data: dna={analysis_data.get('dna', {})}")
+    
+    # Format and save a text summary
+    formatted_text = format_summary(analysis_data)
     with open(OUTPUT_TEXT_PATH, "w", encoding="utf-8") as f:
         f.write(formatted_text)
-
     print(f"[GeminiAnalysis] Formatted match summary saved to: {OUTPUT_TEXT_PATH}")
     
-    # Return the parsed analysis data
+    # Return the parsed analysis data directly
     return analysis_data
 
 # ============================
