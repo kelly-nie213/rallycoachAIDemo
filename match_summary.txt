@@ -1,28 +1,28 @@
 # **Tennis Performance Report**
 
 ## **Performance DNA**
-- Technical Score: 74/100
-- Tactical Score: 72/100
+- Technical Score: 76/100
+- Tactical Score: 73/100
 
-**Summary:** The player exhibits strong postural stability with a Balance Score of 82%, particularly evident during the change of direction in frames 65-70. However, the Racket Head Speed of 27.6 MPH is critically low for elite play, likely caused by a Footwork Efficiency of 75% that forces reactive rather than proactive striking positions.
+**Summary:** The player demonstrates solid fundamental stability with a high Balance Score of 82% and effective energy transfer (Kinetic Chain Efficiency 78%). However, the technique lacks explosiveness, evidenced by a critically low Racket Head Speed of 27.6 MPH, while Footwork Efficiency at 75% suggests suboptimal positioning that is impacting Stroke Consistency (71%).
 
 ## **Key Strengths**
-- High stability with a Balance Score of 82%, maintaining verticality even during wide defensive shots (Frames 140-150)
-- Solid Kinetic Chain Efficiency at 78%, showing connected movement despite the lack of acceleration
-- Forehand Avg Quality of 76% proves to be the more reliable wing compared to the backhand
+- High Balance Score of 82% maintains stability through contact, notably seen in the backhand at Frame 95
+- Strong Kinetic Chain Efficiency at 78% allows for fluid movement and energy transfer
+- Forehand is the dominant wing with an average quality of 76% across 2 detected shots
 
 ## **Areas to Improve**
-- Critically low Racket Head Speed at 27.6 MPH limits offensive capability and ability to dictate points
-- Footwork Efficiency at 75% indicates excessive adjustment steps, particularly observed in the recovery phase between frames 100-115
-- Backhand Avg Quality of 68% is the primary liability, struggling with depth and pace generation
+- Racket Head Speed is significantly underpowered at 27.6 MPH, limiting offensive capability
+- Footwork Efficiency of 75% indicates excessive reaching rather than micro-adjusting, seen in the running forehand at Frame 165
+- Backhand Stroke Quality lags at 68% across 3 shots, requiring technical stabilization
 
 ## **Training Plan**
 
-**Rotational Velocity Overload**
-Medicine ball rotational throws focusing on hip-shoulder separation to increase Core Rotation Speed from the current 145°/s.
+**Speed-Gate Feeding**
+Rapid-fire feeding drill focusing on increasing Racket Head Speed above the current 27.6 MPH baseline by enforcing shorter preparation times and faster core unloading.
 
-**Split-Step Timing & Recovery**
-High-intensity shadow stroking focusing on the first step to improve Footwork Efficiency (75%) and reduce distance traveled per shot.
+**X-Pattern Recovery Drill**
+High-intensity footwork drill targeting the 75% efficiency score. Player must hit corners and recover to specific center targets to enforce precise split-steps and eliminate lazy recovery steps.
 
-**Overspeed Band Work**
-Resistance band shadow swings emphasizing wrist lag and snap to elevate Racket Head Speed significantly above 27.6 MPH.
+**Core Torque Resistance**
+Resistance band rotation exercises to boost Core Rotation Speed from 145°/s to 160°/s+, directly addressing the power leak on the lower-quality (68%) backhand side.
